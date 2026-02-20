@@ -1,0 +1,38 @@
+# ============================================================================
+# Core Voice Cloning Engine Dependencies
+# ============================================================================
+qwen-tts          # Qwen3-TTS model wrapper
+torch             # Deep learning framework
+transformers     # Model architecture
+safetensors       # Safe model serialization
+numpy            # Numerical computing
+soundfile        # Audio file I/O
+
+# ============================================================================
+# FastAPI and Web Server (for REST API)
+# ============================================================================
+fastapi         # Web framework
+uvicorn          # ASGI server
+python-multipart  # File upload support
+pydantic          # Data validation
+pydantic-settings # Settings management
+
+# ============================================================================
+# Development and Testing
+# ============================================================================
+pytest            # Testing framework
+ipython           # Interactive shell
+jupyter           # Jupyter notebook support
+black            # Code formatter
+flake8            # Linter
+
+# ============================================================================
+# Optional: GPU Acceleration (install after main dependencies)
+# ============================================================================
+# flash-attn      # Flash Attention 2 (requires CUDA GPU)
+
+# ============================================================================
+# Utilities
+# ============================================================================
+python-dotenv     # Environment configuration
+requests         # HTTP client
