@@ -40,31 +40,48 @@ def main():
     engine = VoiceCloningEngine(config)
     print("✓ Engine initialized successfully")
     
-    # Step 3: Create a voice clone prompt
-    # NOTE: You'll need to provide actual audio and transcript files
+    # Step 3: Create a voice clone prompt using sample audio
     print("\n[3/4] Creating voice clone prompt...")
-    print("  To use this example, you need:")
-    print("  - A .wav audio file with someone speaking")
-    print("  - The exact transcript/text that was spoken")
-    print("\n  Example code:")
-    print("  ```python")
-    print("  prompt_name = engine.create_voice_clone_prompt(")
-    print("      audio_path='path/to/audio.wav',")
-    print("      transcript='Hello, this is my voice for cloning.',")
-    print("      prompt_name='my_voice'")
-    print("  )")
-    print("  ```")
+    audio_path = Path(__file__).parent / "sample_audios" / "1.wav"
+    transcript = (
+        "Please call Stella. Ask her to bring these things with her from the store: "
+        "Six spoons of fresh snow peas, five thick slabs of blue cheese, and maybe a snack for her brother Bob. "
+        "We also need a small plastic snake and a big toy frog for the kids. "
+        "She can scoop these things into three red bags, and we will go meet her Wednesday at the train station."
+    )
+    
+    if audio_path.exists():
+        print(f"  Using sample audio: {audio_path}")
+        print(f"  Transcript: {transcript[:80]}...")
+        try:
+            prompt_name = engine.create_voice_clone_prompt(
+                audio_path=str(audio_path),
+                transcript=transcript,
+                prompt_name="sample_voice"
+            )
+            print(f"✓ Voice clone created: {prompt_name}")
+        except Exception as e:
+            print(f"✗ Error creating voice clone: {e}")
+            return
+    else:
+        print(f"✗ Sample audio not found at: {audio_path}")
+        print("  Please ensure the sample_audios/1.wav file exists.")
+        return
     
     # Step 4: Synthesize audio using the clone
     print("\n[4/4] Synthesizing audio with cloned voice...")
-    print("  Once you have a prompt cached, generate speech with:")
-    print("  ```python")
-    print("  audio_output = engine.synthesize_voice(")
-    print("      text='The text you want to synthesize',")
-    print("      language='Auto',  # 'English', 'Chinese', etc.")
-    print("      prompt_name='my_voice'")
-    print("  )")
-    print("  ```")
+    try:
+        synthesis_text = "Hello everyone, this is a test of voice cloning technology."
+        print(f"  Synthesis text: {synthesis_text}")
+        audio_output = engine.synthesize_voice(
+            text=synthesis_text,
+            language="Auto",
+            prompt_name="sample_voice"
+        )
+        print(f"✓ Audio synthesized successfully")
+        print(f"  Output shape: {audio_output.shape}")
+    except Exception as e:
+        print(f"✗ Error synthesizing audio: {e}")
     
     # List available methods
     print("\n" + "=" * 70)
@@ -85,6 +102,17 @@ def main():
     for i, (method, desc) in enumerate(methods, 1):
         print(f"\n{i}. {method}")
         print(f"   {desc}")
+    
+    # Show cached prompts
+    print("\n" + "=" * 70)
+    print("Cached Prompts:")
+    print("=" * 70)
+    cached = engine.list_cached_prompts()
+    if cached:
+        for prompt in cached:
+            print(f"  - {prompt}")
+    else:
+        print("  No cached prompts")
     
     print("\n" + "=" * 70)
     print("\nFor more examples, see:")

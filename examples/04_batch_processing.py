@@ -152,15 +152,27 @@ def example_scenario_1_multiple_speakers():
     engine = VoiceCloningEngine(config)
     processor = BatchVoiceCloningProcessor(engine)
     
-    # Define multiple speakers
-    speakers = {
-        "alice": ("audio_samples/alice.wav", "Hello, I am Alice."),
-        "bob": ("audio_samples/bob.wav", "Hi, I'm Bob."),
-        "charlie": ("audio_samples/charlie.wav", "Hey, Charlie here."),
-    }
+    # Use sample audio for demonstration
+    sample_audio = Path(__file__).parent / "sample_audios" / "1.wav"
+    transcript = (
+        "Please call Stella. Ask her to bring these things with her from the store: "
+        "Six spoons of fresh snow peas, five thick slabs of blue cheese, and maybe a snack for her brother Bob. "
+        "We also need a small plastic snake and a big toy frog for the kids. "
+        "She can scoop these things into three red bags, and we will go meet her Wednesday at the train station."
+    )
     
-    print("\nCreating voice clones for multiple speakers...")
-    print("(This is a demonstration - you'd need actual audio files)")
+    # Define speakers (using sample audio for all in this demo)
+    speakers = {}
+    if sample_audio.exists():
+        speakers = {
+            "stella": (str(sample_audio), transcript),
+            "stella_variant_2": (str(sample_audio), transcript),
+        }
+    else:
+        print(f"✗ Sample audio not found at: {sample_audio}")
+        return engine, processor
+    
+    print(f"\nCreating voice clones using sample audio...")
     
     results = processor.batch_create_prompts(speakers)
     
@@ -183,6 +195,28 @@ def example_scenario_2_large_scale_synthesis():
     engine = VoiceCloningEngine(config)
     processor = BatchVoiceCloningProcessor(engine)
     
+    # First create voice clone from sample audio
+    sample_audio = Path(__file__).parent / "sample_audios" / "1.wav"
+    transcript = (
+        "Please call Stella. Ask her to bring these things with her from the store: "
+        "Six spoons of fresh snow peas, five thick slabs of blue cheese, and maybe a snack for her brother Bob. "
+        "We also need a small plastic snake and a big toy frog for the kids. "
+        "She can scoop these things into three red bags, and we will go meet her Wednesday at the train station."
+    )
+    
+    if sample_audio.exists():
+        print(f"\nCreating voice clone from sample audio...")
+        try:
+            engine.create_voice_clone_prompt(
+                audio_path=str(sample_audio),
+                transcript=transcript,
+                prompt_name="synthesis_voice"
+            )
+            print("✓ Voice clone created")
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            return
+    
     # Prepare texts to synthesize
     texts = [
         "The quick brown fox jumps over the lazy dog.",
@@ -193,9 +227,10 @@ def example_scenario_2_large_scale_synthesis():
     ]
     
     print(f"\nPrepared {len(texts)} texts for synthesis")
-    print("(Demonstration - requires pre-existing voice prompts)")
+    print("Starting batch synthesis...\n")
     
-    # Would synthesize with: processor.batch_synthesize("voice_name", texts)
+    # Synthesize with the created voice
+    processor.batch_synthesize("synthesis_voice", texts, output_dir="batch_output")
 
 
 def example_scenario_3_production_pipeline():
