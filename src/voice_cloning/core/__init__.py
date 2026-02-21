@@ -7,9 +7,12 @@ Provides the VoiceCloningEngine class for voice cloning and synthesis operations
 import torch
 import numpy as np
 from pathlib import Path
-from typing import Union, Tuple, List, Optional, Dict, Any
+from typing import Union, Tuple, List, Optional, Dict, Any, TYPE_CHECKING
 from qwen_tts import Qwen3TTSModel
 import soundfile as sf
+
+if TYPE_CHECKING:
+    from voice_cloning.config import EngineConfig
 
 
 class VoiceCloningEngine:
@@ -20,7 +23,7 @@ class VoiceCloningEngine:
 
     def __init__(
         self,
-        model_path: Union[str, Path],
+        model_path: Union[str, Path, "EngineConfig"] = None,
         device: Optional[str] = None,
         dtype: torch.dtype = torch.bfloat16,
         use_flash_attention: bool = False,
@@ -29,28 +32,42 @@ class VoiceCloningEngine:
         Initialize the Voice Cloning Engine.
 
         Args:
-            model_path: Path to the local Qwen3-TTS model directory
-            device: Device to use ('cuda', 'cpu', or None for auto-detection)
-            dtype: Data type for model (torch.bfloat16 or torch.float32)
-            use_flash_attention: Whether to use Flash Attention 2 (requires GPU)
+            model_path: Either an EngineConfig object OR path to the local Qwen3-TTS model directory.
+                       Can be a string/Path for backward compatibility.
+            device: Device to use ('cuda', 'cpu', or None for auto-detection).
+                   Ignored if model_path is an EngineConfig object.
+            dtype: Data type for model (torch.bfloat16 or torch.float32).
+                  Ignored if model_path is an EngineConfig object.
+            use_flash_attention: Whether to use Flash Attention 2 (requires GPU).
+                                Ignored if model_path is an EngineConfig object.
 
         Raises:
             FileNotFoundError: If model path doesn't exist
             ValueError: If model configuration is invalid
         """
-        self.model_path = Path(model_path)
+        # Handle EngineConfig object
+        if hasattr(model_path, "model_path"):  # Check if it's an EngineConfig
+            config = model_path
+            self.model_path = Path(config.model_path)
+            self.device = config.device if config.device else self._detect_device()
+            self.dtype = config.dtype
+            self.use_flash_attention = config.use_flash_attention
+        else:
+            # Handle string/Path model_path
+            self.model_path = Path(model_path)
+            
+            # Auto-detect device if not specified
+            if device is None:
+                self.device = self._detect_device()
+            else:
+                self.device = device
+            
+            self.dtype = dtype
+            self.use_flash_attention = use_flash_attention
         
         if not self.model_path.exists():
-            raise FileNotFoundError(f"Model path not found: {model_path}")
+            raise FileNotFoundError(f"Model path not found: {self.model_path}")
         
-        # Auto-detect device if not specified
-        if device is None:
-            self.device = self._detect_device()
-        else:
-            self.device = device
-        
-        self.dtype = dtype
-        self.use_flash_attention = use_flash_attention
         self.model = None
         self.clone_prompts: Dict[str, Any] = {}
         self.sample_rate = 24000
