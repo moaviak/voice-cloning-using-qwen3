@@ -83,7 +83,7 @@ class VoiceCloningAPIClient:
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
         
         with open(audio_file, "rb") as f:
-            files = {"file": f}
+            files = {"audio": f}
             data = {"transcript": transcript, "prompt_name": prompt_name}
             return self._make_request("POST", "/create-prompt", files=files, data=data)
     
