@@ -171,7 +171,7 @@ def main():
     # Initialize client
     client = VoiceCloningAPIClient(base_url="http://localhost:8000")
     
-    print("\n[1/3] Checking API server health...")
+    print("\n[1/4] Checking API server health...")
     try:
         status = client.check_health()
         print(f"✓ Server is healthy")
@@ -184,28 +184,70 @@ def main():
         print("  python scripts/run_api.py")
         return
     
-    print("\n[2/3] Creating voice clone...")
-    print("  To create a voice clone:")
-    print("  ```python")
-    print("  response = client.create_voice_clone(")
-    print("      audio_file='path/to/audio.wav',")
-    print("      transcript='The spoken text...',")
-    print("      prompt_name='my_voice'")
-    print("  )")
-    print("  ```")
+    # Setup sample audio and transcript
+    sample_audio = Path(__file__).parent / "sample_audios" / "1.wav"
+    transcript = (
+        "Please call Stella. Ask her to bring these things with her from the store: "
+        "Six spoons of fresh snow peas, five thick slabs of blue cheese, and maybe a snack for her brother Bob. "
+        "We also need a small plastic snake and a big toy frog for the kids. "
+        "She can scoop these things into three red bags, and we will go meet her Wednesday at the train station."
+    )
     
-    print("\n[3/3] Synthesizing audio...")
-    print("  To synthesize audio with the cloned voice:")
-    print("  ```python")
-    print("  audio_data = client.synthesize_audio(")
-    print("      text='New text to synthesize',")
-    print("      prompt_name='my_voice',")
-    print("      language='English'")
-    print("  )")
-    print("  # Save audio_data to file")
-    print("  with open('output.wav', 'wb') as f:")
-    print("      f.write(audio_data)")
-    print("  ```")
+    print("\n[2/4] Creating voice clone...")
+    if not sample_audio.exists():
+        print(f"✗ Sample audio not found at: {sample_audio}")
+        print("  Please ensure the sample_audios/1.wav file exists.")
+        return
+    
+    print(f"  Audio file: {sample_audio}")
+    print(f"  Transcript: {transcript[:60]}...")
+    
+    try:
+        response = client.create_voice_clone(
+            audio_file=str(sample_audio),
+            transcript=transcript,
+            prompt_name="api_sample_voice"
+        )
+        print(f"✓ Voice clone created successfully")
+        print(f"  Response: {response}")
+    except Exception as e:
+        print(f"✗ Error creating voice clone: {e}")
+        return
+    
+    print("\n[3/4] Listing cached prompts...")
+    try:
+        prompts = client.list_prompts()
+        print(f"✓ Cached prompts retrieved")
+        print(f"  Prompts: {prompts}")
+    except Exception as e:
+        print(f"✗ Error listing prompts: {e}")
+    
+    print("\n[4/4] Synthesizing audio...")
+    synthesis_texts = [
+        "Hello from the API voice cloning system.",
+        "This audio was generated using a cloned voice.",
+        "The voice was created from the sample audio file."
+    ]
+    
+    output_dir = Path("api_output")
+    output_dir.mkdir(exist_ok=True)
+    
+    for i, text in enumerate(synthesis_texts, 1):
+        try:
+            print(f"  [{i}/{len(synthesis_texts)}] Synthesizing: {text[:40]}...")
+            audio_data = client.synthesize_audio(
+                text=text,
+                prompt_name="api_sample_voice",
+                language="English"
+            )
+            
+            output_path = output_dir / f"api_output_{i:02d}.wav"
+            with open(output_path, "wb") as f:
+                f.write(audio_data)
+            
+            print(f"    ✓ Saved to: {output_path}")
+        except Exception as e:
+            print(f"    ✗ Error: {e}")
     
     print("\n" + "=" * 70)
     print("API Endpoints Available:")
