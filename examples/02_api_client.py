@@ -98,24 +98,36 @@ class VoiceCloningAPIClient:
     def synthesize_audio(
         self,
         text: str,
-        prompt_name: str,
+        prompt_id: str = None,
+        prompt_name: str = None,
         language: str = "Auto"
     ) -> bytes:
         """Synthesize audio using a voice clone.
         
         Args:
             text: Text to synthesize
-            prompt_name: Name of the voice prompt to use
+            prompt_id: ID of the voice prompt to use (preferred)
+            prompt_name: Name of the voice prompt to use (falls back to prompt_id if both provided)
             language: Language for synthesis
             
         Returns:
             Audio data as bytes
         """
+        # Use prompt_id if provided, otherwise use prompt_name
+        if not prompt_id and not prompt_name:
+            raise ValueError("Either prompt_id or prompt_name must be provided")
+        
         payload = {
             "text": text,
-            "prompt_name": prompt_name,
             "language": language
         }
+        
+        # Add prompt_id to payload (API expects this)
+        if prompt_id:
+            payload["prompt_id"] = prompt_id
+        else:
+            # If only prompt_name is provided, we'll try using it as prompt_id
+            payload["prompt_id"] = prompt_name
         
         try:
             response = requests.post(
@@ -213,6 +225,7 @@ def main():
     print(f"  Audio file: {sample_audio}")
     print(f"  Transcript: {transcript[:60]}...")
     
+    prompt_id = None
     try:
         response = client.create_voice_clone(
             audio_file=str(sample_audio),
@@ -220,7 +233,9 @@ def main():
             prompt_name="api_sample_voice"
         )
         print(f"✓ Voice clone created successfully")
-        print(f"  Response: {response}")
+        print(f"  Prompt ID: {response.get('prompt_id')}")
+        print(f"  Prompt Name: {response.get('prompt_name')}")
+        prompt_id = response.get('prompt_id')
     except Exception as e:
         print(f"✗ Error creating voice clone: {e}")
         return
@@ -229,9 +244,16 @@ def main():
     try:
         prompts = client.list_prompts()
         print(f"✓ Cached prompts retrieved")
-        print(f"  Prompts: {prompts}")
+        print(f"  Count: {prompts.get('count', 0)}")
+        if prompts.get('prompts'):
+            for prompt in prompts.get('prompts', []):
+                print(f"    - {prompt.get('prompt_name')}: {prompt.get('prompt_id')}")
     except Exception as e:
         print(f"✗ Error listing prompts: {e}")
+    
+    if not prompt_id:
+        print("\n✗ Cannot synthesize audio without a valid prompt ID")
+        return
     
     print("\n[4/4] Synthesizing audio...")
     synthesis_texts = [
@@ -248,7 +270,7 @@ def main():
             print(f"  [{i}/{len(synthesis_texts)}] Synthesizing: {text[:40]}...")
             audio_data = client.synthesize_audio(
                 text=text,
-                prompt_name="api_sample_voice",
+                prompt_id=prompt_id,
                 language="English"
             )
             
