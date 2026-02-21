@@ -29,7 +29,7 @@ flake8            # Linter
 # ============================================================================
 # Optional: GPU Acceleration (install after main dependencies)
 # ============================================================================
-flash-attn      # Flash Attention 2 (requires CUDA GPU)
+# flash-attn      # Flash Attention 2 (requires CUDA GPU)
 
 # ============================================================================
 # Utilities
