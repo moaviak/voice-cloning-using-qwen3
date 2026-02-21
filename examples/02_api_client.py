@@ -117,13 +117,16 @@ class VoiceCloningAPIClient:
             "language": language
         }
         
-        response = requests.post(
-            f"{self.base_url}/api/{self.api_version}/synthesize",
-            json=payload
-        )
-        response.raise_for_status()
-        
-        return response.content
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/{self.api_version}/synthesize",
+                json=payload
+            )
+            response.raise_for_status()
+            return response.content
+        except requests.exceptions.HTTPError as e:
+            error_detail = e.response.text
+            raise RuntimeError(f"API Error: {e.response.status_code} - {error_detail}")
     
     def list_prompts(self) -> dict:
         """List all cached voice prompts.
