@@ -73,13 +73,22 @@ def main():
     try:
         synthesis_text = "Hello everyone, this is a test of voice cloning technology."
         print(f"  Synthesis text: {synthesis_text}")
-        audio_output = engine.synthesize_voice(
+        result = engine.synthesize_voice(
             text=synthesis_text,
             language="Auto",
             prompt_name="sample_voice"
         )
+        
+        # Handle both tuple and array returns
+        if isinstance(result, tuple):
+            audio_output, sample_rate = result
+        else:
+            audio_output = result
+            sample_rate = 24000
+        
         print(f"✓ Audio synthesized successfully")
         print(f"  Output shape: {audio_output.shape}")
+        print(f"  Sample rate: {sample_rate} Hz")
     except Exception as e:
         print(f"✗ Error synthesizing audio: {e}")
     

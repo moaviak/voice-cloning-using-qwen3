@@ -95,14 +95,21 @@ def create_sample_workflow():
         for i, text in enumerate(test_texts, 1):
             try:
                 print(f"  [{i}/{len(test_texts)}] Synthesizing: {text[:50]}...")
-                audio = engine.synthesize_voice(
+                result = engine.synthesize_voice(
                     text=text,
                     language="English",
                     prompt_name="stella_voice"
                 )
                 
+                # Handle both tuple and array returns
+                if isinstance(result, tuple):
+                    audio, sample_rate = result
+                else:
+                    audio = result
+                    sample_rate = 24000
+                
                 output_path = output_dir / f"stella_output_{i:02d}.wav"
-                sf.write(str(output_path), audio, 24000)
+                sf.write(str(output_path), audio, sample_rate)
                 print(f"    ✓ Saved to: {output_path}")
             except Exception as e:
                 print(f"    ✗ Error: {e}")

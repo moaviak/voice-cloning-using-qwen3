@@ -94,6 +94,8 @@ class BatchVoiceCloningProcessor:
         Returns:
             List of output file paths
         """
+        import soundfile as sf
+        
         output_paths = []
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -106,18 +108,22 @@ class BatchVoiceCloningProcessor:
                 print(f"[{i}/{total}] Synthesizing: {text[:50]}...")
                 
                 # Synthesize
-                audio = self.engine.synthesize_voice(
+                result = self.engine.synthesize_voice(
                     text=text,
                     language=language,
                     prompt_name=prompt_name
                 )
                 
+                # Handle both tuple and array returns
+                if isinstance(result, tuple):
+                    audio, sample_rate = result
+                else:
+                    audio = result
+                    sample_rate = 24000
+                
                 # Save output
                 output_path = output_dir / f"output_{i:03d}.wav"
-                
-                # You would save the audio here with soundfile
-                # import soundfile as sf
-                # sf.write(str(output_path), audio, 24000)
+                sf.write(str(output_path), audio, sample_rate)
                 
                 output_paths.append(str(output_path))
                 print(f"  ✓ Saved: {output_path}")
