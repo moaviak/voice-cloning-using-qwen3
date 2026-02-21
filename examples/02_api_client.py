@@ -82,10 +82,18 @@ class VoiceCloningAPIClient:
         if not Path(audio_file).exists():
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
         
+        # Read file content and send with proper content type
         with open(audio_file, "rb") as f:
-            files = {"audio": f}
+            files = {"audio": (Path(audio_file).name, f, "audio/wav")}
             data = {"transcript": transcript, "prompt_name": prompt_name}
-            return self._make_request("POST", "/create-prompt", files=files, data=data)
+            url = f"{self.base_url}/api/{self.api_version}/create-prompt"
+            
+            try:
+                response = requests.post(url, files=files, data=data)
+                response.raise_for_status()
+                return response.json() if response.text else {"status": "success"}
+            except requests.exceptions.HTTPError as e:
+                raise RuntimeError(f"API Error: {e.response.status_code} - {e.response.text}")
     
     def synthesize_audio(
         self,
