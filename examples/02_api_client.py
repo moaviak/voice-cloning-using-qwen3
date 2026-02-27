@@ -82,40 +82,63 @@ class VoiceCloningAPIClient:
         if not Path(audio_file).exists():
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
         
+        # Read file content and send with proper content type
         with open(audio_file, "rb") as f:
-            files = {"file": f}
+            files = {"audio": (Path(audio_file).name, f, "audio/wav")}
             data = {"transcript": transcript, "prompt_name": prompt_name}
-            return self._make_request("POST", "/create-prompt", files=files, data=data)
+            url = f"{self.base_url}/api/{self.api_version}/create-prompt"
+            
+            try:
+                response = requests.post(url, files=files, data=data)
+                response.raise_for_status()
+                return response.json() if response.text else {"status": "success"}
+            except requests.exceptions.HTTPError as e:
+                raise RuntimeError(f"API Error: {e.response.status_code} - {e.response.text}")
     
     def synthesize_audio(
         self,
         text: str,
-        prompt_name: str,
+        prompt_id: str = None,
+        prompt_name: str = None,
         language: str = "Auto"
     ) -> bytes:
         """Synthesize audio using a voice clone.
         
         Args:
             text: Text to synthesize
-            prompt_name: Name of the voice prompt to use
+            prompt_id: ID of the voice prompt to use (preferred)
+            prompt_name: Name of the voice prompt to use (falls back to prompt_id if both provided)
             language: Language for synthesis
             
         Returns:
             Audio data as bytes
         """
+        # Use prompt_id if provided, otherwise use prompt_name
+        if not prompt_id and not prompt_name:
+            raise ValueError("Either prompt_id or prompt_name must be provided")
+        
         payload = {
             "text": text,
-            "prompt_name": prompt_name,
             "language": language
         }
         
-        response = requests.post(
-            f"{self.base_url}/api/{self.api_version}/synthesize",
-            json=payload
-        )
-        response.raise_for_status()
+        # Add prompt_id to payload (API expects this)
+        if prompt_id:
+            payload["prompt_id"] = prompt_id
+        else:
+            # If only prompt_name is provided, we'll try using it as prompt_id
+            payload["prompt_id"] = prompt_name
         
-        return response.content
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/{self.api_version}/synthesize",
+                json=payload
+            )
+            response.raise_for_status()
+            return response.content
+        except requests.exceptions.HTTPError as e:
+            error_detail = e.response.text
+            raise RuntimeError(f"API Error: {e.response.status_code} - {error_detail}")
     
     def list_prompts(self) -> dict:
         """List all cached voice prompts.
@@ -171,7 +194,7 @@ def main():
     # Initialize client
     client = VoiceCloningAPIClient(base_url="http://localhost:8000")
     
-    print("\n[1/3] Checking API server health...")
+    print("\n[1/4] Checking API server health...")
     try:
         status = client.check_health()
         print(f"✓ Server is healthy")
@@ -184,28 +207,80 @@ def main():
         print("  python scripts/run_api.py")
         return
     
-    print("\n[2/3] Creating voice clone...")
-    print("  To create a voice clone:")
-    print("  ```python")
-    print("  response = client.create_voice_clone(")
-    print("      audio_file='path/to/audio.wav',")
-    print("      transcript='The spoken text...',")
-    print("      prompt_name='my_voice'")
-    print("  )")
-    print("  ```")
+    # Setup sample audio and transcript
+    sample_audio = Path(__file__).parent / "sample_audios" / "1.wav"
+    transcript = (
+        "Please call Stella. Ask her to bring these things with her from the store: "
+        "Six spoons of fresh snow peas, five thick slabs of blue cheese, and maybe a snack for her brother Bob. "
+        "We also need a small plastic snake and a big toy frog for the kids. "
+        "She can scoop these things into three red bags, and we will go meet her Wednesday at the train station."
+    )
     
-    print("\n[3/3] Synthesizing audio...")
-    print("  To synthesize audio with the cloned voice:")
-    print("  ```python")
-    print("  audio_data = client.synthesize_audio(")
-    print("      text='New text to synthesize',")
-    print("      prompt_name='my_voice',")
-    print("      language='English'")
-    print("  )")
-    print("  # Save audio_data to file")
-    print("  with open('output.wav', 'wb') as f:")
-    print("      f.write(audio_data)")
-    print("  ```")
+    print("\n[2/4] Creating voice clone...")
+    if not sample_audio.exists():
+        print(f"✗ Sample audio not found at: {sample_audio}")
+        print("  Please ensure the sample_audios/1.wav file exists.")
+        return
+    
+    print(f"  Audio file: {sample_audio}")
+    print(f"  Transcript: {transcript[:60]}...")
+    
+    prompt_id = None
+    try:
+        response = client.create_voice_clone(
+            audio_file=str(sample_audio),
+            transcript=transcript,
+            prompt_name="api_sample_voice"
+        )
+        print(f"✓ Voice clone created successfully")
+        print(f"  Prompt ID: {response.get('prompt_id')}")
+        print(f"  Prompt Name: {response.get('prompt_name')}")
+        prompt_id = response.get('prompt_id')
+    except Exception as e:
+        print(f"✗ Error creating voice clone: {e}")
+        return
+    
+    print("\n[3/4] Listing cached prompts...")
+    try:
+        prompts = client.list_prompts()
+        print(f"✓ Cached prompts retrieved")
+        print(f"  Count: {prompts.get('count', 0)}")
+        if prompts.get('prompts'):
+            for prompt in prompts.get('prompts', []):
+                print(f"    - {prompt.get('prompt_name')}: {prompt.get('prompt_id')}")
+    except Exception as e:
+        print(f"✗ Error listing prompts: {e}")
+    
+    if not prompt_id:
+        print("\n✗ Cannot synthesize audio without a valid prompt ID")
+        return
+    
+    print("\n[4/4] Synthesizing audio...")
+    synthesis_texts = [
+        "Hello from the API voice cloning system.",
+        "This audio was generated using a cloned voice.",
+        "The voice was created from the sample audio file."
+    ]
+    
+    output_dir = Path("api_output")
+    output_dir.mkdir(exist_ok=True)
+    
+    for i, text in enumerate(synthesis_texts, 1):
+        try:
+            print(f"  [{i}/{len(synthesis_texts)}] Synthesizing: {text[:40]}...")
+            audio_data = client.synthesize_audio(
+                text=text,
+                prompt_id=prompt_id,
+                language="English"
+            )
+            
+            output_path = output_dir / f"api_output_{i:02d}.wav"
+            with open(output_path, "wb") as f:
+                f.write(audio_data)
+            
+            print(f"    ✓ Saved to: {output_path}")
+        except Exception as e:
+            print(f"    ✗ Error: {e}")
     
     print("\n" + "=" * 70)
     print("API Endpoints Available:")

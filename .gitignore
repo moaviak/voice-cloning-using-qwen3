@@ -35,11 +35,7 @@ env/
 .DS_Store
 
 # Project specific
-output/
-*.wav
-*.mp3
-samples/*.wav
-samples/*.mp3
+output/*
 .cache/
 
 # Jupyter

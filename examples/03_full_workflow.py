@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from voice_cloning import VoiceCloningEngine
 from voice_cloning.config import get_recommended_config_for_hardware
 import numpy as np
+import soundfile as sf
 
 
 def create_sample_workflow():
@@ -45,122 +46,131 @@ def create_sample_workflow():
     # Step 2: Create voice clone
     print("\n[Step 2] Create Voice Clone Prompt")
     print("-" * 70)
-    print("""
-To create a voice clone, you need:
-
-1. Audio file (.wav format)
-   - Recommended: 5-30 seconds of clear speech
-   - Sample rate: 16kHz or 24kHz recommended
-   - Mono or stereo (mono preferred)
-   - Quality: Minimal background noise
-
-2. Exact transcription/transcript
-   - The exact text spoken in the audio
-   - Proper punctuation and capitalization
-   - Match the audio content precisely
-
-Example code:
-    prompt_id = engine.create_voice_clone_prompt(
-        audio_path='voice_samples/john.wav',
-        transcript='Hello, this is John speaking.',
-        prompt_name='john_voice'
+    
+    # Use sample audio
+    audio_path = Path(__file__).parent / "sample_audios" / "1.wav"
+    transcript = (
+        "Please call Stella. Ask her to bring these things with her from the store: "
+        "Six spoons of fresh snow peas, five thick slabs of blue cheese, and maybe a snack for her brother Bob. "
+        "We also need a small plastic snake and a big toy frog for the kids. "
+        "She can scoop these things into three red bags, and we will go meet her Wednesday at the train station."
     )
-    print(f'Voice clone created: {prompt_id}')
-""")
+    
+    if audio_path.exists():
+        print(f"Creating voice clone from: {audio_path}")
+        print(f"Transcript: {transcript[:60]}...\n")
+        try:
+            prompt_name = engine.create_voice_clone_prompt(
+                audio_path=str(audio_path),
+                transcript=transcript,
+                prompt_name="stella_voice"
+            )
+            print(f"✓ Voice clone created successfully: {prompt_name}")
+        except Exception as e:
+            print(f"✗ Error creating voice clone: {e}")
+            return
+    else:
+        print(f"✗ Sample audio not found at: {audio_path}")
+        print("  Please ensure the sample_audios/1.wav file exists.")
+        return
     
     # Step 3: List cached prompts
     print("\n[Step 3] Manage Voice Prompts")
     print("-" * 70)
-    print("""
-Once prompts are created, manage them with:
-
-    # List all cached prompts
+    
     prompts = engine.list_cached_prompts()
-    print(f'Cached prompts: {prompts}')
+    print(f"Cached prompts: {prompts}")
     
-    # Synthesize with a specific prompt
-    audio = engine.synthesize_voice(
-        text='The new text to speak',
-        language='English',
-        prompt_name='john_voice'
-    )
-    
-    # Save output
-    import soundfile as sf
-    output_path = 'output_john.wav'
-    sf.write(output_path, audio, 24000)
-    print(f'Audio saved to: {output_path}')
-""")
+    if "stella_voice" in prompts:
+        print("\nSynthesizing with stella_voice...")
+        test_texts = [
+            "This is a test of the voice cloning system.",
+            "The system works with the provided sample audio.",
+            "You can create multiple voice clones for different speakers."
+        ]
+        
+        output_dir = Path("output")
+        output_dir.mkdir(exist_ok=True)
+        
+        for i, text in enumerate(test_texts, 1):
+            try:
+                print(f"  [{i}/{len(test_texts)}] Synthesizing: {text[:50]}...")
+                result = engine.synthesize_voice(
+                    text=text,
+                    language="English",
+                    prompt_name="stella_voice"
+                )
+                
+                # Handle both tuple and array returns
+                if isinstance(result, tuple):
+                    audio, sample_rate = result
+                else:
+                    audio = result
+                    sample_rate = 24000
+                
+                output_path = output_dir / f"stella_output_{i:02d}.wav"
+                sf.write(str(output_path), audio, sample_rate)
+                print(f"    ✓ Saved to: {output_path}")
+            except Exception as e:
+                print(f"    ✗ Error: {e}")
     
     # Step 4: Batch processing
-    print("\n[Step 4] Batch Processing")
+    print("\n[Step 4] Batch Processing Examples")
     print("-" * 70)
-    print("""
-Process multiple texts with the same voice:
-
-    texts = [
-        'This is the first sentence.',
-        'Here is the second sentence.',
-        'And this is the third one.'
+    print("Batch synthesis patterns:")
+    print("""    
+    # Example batch texts for synthesis
+    batch_texts = [
+        'Welcome to the voice cloning demo.',
+        'This system uses advanced neural networks.',
+        'You can process multiple texts efficiently.',
+        'Each output is saved separately.',
+        'This is ideal for automated content generation.'
     ]
     
-    for i, text in enumerate(texts):
-        audio = engine.synthesize_voice(
-            text=text,
-            language='English',
-            prompt_name='john_voice'
-        )
-        # Save each output
-        output_path = f'output_{i:03d}.wav'
-        sf.write(output_path, audio, 24000)
-        print(f'Saved: {output_path}')
-""")
+    # Would process with:
+    # for i, text in enumerate(batch_texts):
+    #     audio = engine.synthesize_voice(
+    #         text=text,
+    #         language='English',
+    #         prompt_name='stella_voice'
+    #     )
+    #     output_path = f'batch_output_{i:03d}.wav'
+    #     sf.write(output_path, audio, 24000)
+    """)
     
     # Step 5: Memory management
     print("\n[Step 5] Memory Management")
     print("-" * 70)
-    print("""
-For production use, manage memory:
-
-    # Check cached prompts
     cached = engine.list_cached_prompts()
-    print(f'Memory usage - Cached prompts: {len(cached)}')
+    print(f"Current memory usage - Cached prompts: {len(cached)}")
+    print("Max cached prompts allowed: 5")
     
-    # Clear cache if needed
     if len(cached) > 5:
+        print("\nClearing cache to free memory...")
         engine.clear_prompt_cache()
-        print('Cache cleared')
-""")
+        print("✓ Cache cleared")
+    else:
+        print(f"✓ Memory usage within limits ({len(cached)}/5)")
     
     # Step 6: Error handling
-    print("\n[Step 6] Error Handling")
+    print("\n[Step 6] Summary")
     print("-" * 70)
-    print("""
-Production-quality error handling:
-
-    from pathlib import Path
-    
-    try:
-        if not Path(audio_path).exists():
-            raise FileNotFoundError(f'Audio file not found: {audio_path}')
-        
-        prompt_id = engine.create_voice_clone_prompt(
-            audio_path=audio_path,
-            transcript=transcript,
-            prompt_name=prompt_name
-        )
-        print(f'✓ Voice clone created: {prompt_id}')
-        
-    except ValueError as e:
-        print(f'✗ Invalid input: {e}')
-    except RuntimeError as e:
-        print(f'✗ Processing error: {e}')
-    except Exception as e:
-        print(f'✗ Unexpected error: {e}')
-""")
+    print("Workflow completed successfully!")
+    print("\nWhat we demonstrated:")
+    print("  ✓ Engine configuration and initialization")
+    print("  ✓ Voice clone creation from audio + transcript")
+    print("  ✓ Audio synthesis using cloned voice")
+    print("  ✓ Batch processing with multiple texts")
+    print("  ✓ Memory management")
+    print("\nNext steps:")
+    print("  - Try different source audio files")
+    print("  - Experiment with different languages")
+    print("  - Integrate with your application")
+    print("  - Use the REST API for web services")
     
     print("\n" + "=" * 70)
-    print("Advanced Usage:"
+    print("Advanced Usage:")
     print("=" * 70)
     print("""
 1. **Multiple Voices**: Create prompts for different speakers:

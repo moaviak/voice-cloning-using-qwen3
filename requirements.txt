@@ -36,3 +36,4 @@ flake8            # Linter
 # ============================================================================
 python-dotenv     # Environment configuration
 requests         # HTTP client
+huggingface_hub
