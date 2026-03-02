@@ -2,7 +2,7 @@
 Pydantic models for API requests and responses.
 """
 
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List, Any, Dict
 
 
@@ -72,14 +72,12 @@ class SynthesisRequest(BaseModel):
         ),
     )
 
-    @root_validator
-    def validate_prompt_source(cls, values):
+    @model_validator(mode="after")
+    def validate_prompt_source(self) -> "SynthesisRequest":
         """Ensure that at least one prompt source is provided."""
-        prompt_id = values.get("prompt_id")
-        voice_clone_prompt = values.get("voice_clone_prompt")
-        if not prompt_id and voice_clone_prompt is None:
+        if not self.prompt_id and self.voice_clone_prompt is None:
             raise ValueError("Either 'voice_clone_prompt' or 'prompt_id' must be provided")
-        return values
+        return self
     
     class Config:
         schema_extra = {
