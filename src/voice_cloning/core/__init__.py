@@ -132,7 +132,7 @@ class VoiceCloningEngine:
         transcript: str,
         prompt_name: Optional[str] = None,
         x_vector_only_mode: bool = False,
-    ) -> str:
+    ) -> Any:
         """
         Create a voice cloning prompt from audio file and its transcript.
         The prompt is cached internally for reuse.
@@ -146,7 +146,10 @@ class VoiceCloningEngine:
                                Set False for better cloning quality.
 
         Returns:
-            Prompt identifier (can be used to reference this prompt later)
+            Raw prompt object as returned by the underlying Qwen3-TTS model.
+            This object can be sent over the wire (e.g. via API) and later
+            passed back into `synthesize_voice` via the `voice_clone_prompt`
+            argument for fully stateless usage.
 
         Raises:
             FileNotFoundError: If audio file doesn't exist
@@ -173,12 +176,14 @@ class VoiceCloningEngine:
                 x_vector_only_mode=x_vector_only_mode,
             )
             
-            # Cache the prompt
+            # Cache the prompt by name for local reuse (optional)
             self.clone_prompts[prompt_name] = prompt_items
             
             print(f"✓ Voice clone prompt created successfully!")
             
-            return prompt_name
+            # Return the raw prompt items so callers (including the API layer)
+            # can persist or transmit them directly.
+            return prompt_items
             
         except Exception as e:
             raise ValueError(f"Failed to create voice clone prompt: {str(e)}")

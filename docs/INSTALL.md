@@ -144,86 +144,62 @@ modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-Base --local_dir models/qwe
 The engine automatically detects and uses GPU if available, otherwise CPU:
 
 ```python
-from qwen3_voice_engine import VoiceCloningEngine
+from voice_cloning import VoiceCloningEngine
+from voice_cloning.config import get_recommended_config_for_hardware
 
-engine = VoiceCloningEngine(
-    model_path="models/qwen3-tts",
-    device=None,  # Auto-detect
-)
+config = get_recommended_config_for_hardware()
+engine = VoiceCloningEngine(config)
 ```
 
 ### Manual Device Selection
 
-#### Force GPU:
+#### Force GPU / CPU:
 
 ```python
-engine = VoiceCloningEngine(
-    model_path="models/qwen3-tts",
-    device="cuda:0",
-    dtype=torch.bfloat16,
-    use_flash_attention=True,  # Optional
-)
-```
+from voice_cloning import VoiceCloningEngine
+from voice_cloning.config import EngineConfig
+import torch
 
-#### Force CPU:
-
-```python
-engine = VoiceCloningEngine(
+cfg = EngineConfig(
     model_path="models/qwen3-tts",
-    device="cpu",
-    dtype=torch.float32,
+    device="cuda:0",               # or "cpu"
+    dtype=torch.bfloat16,          # or torch.float32
 )
+engine = VoiceCloningEngine(cfg)
 ```
 
 ### Using Configuration Presets
 
 ```python
-from config import get_config
+from voice_cloning.config import get_config
+from voice_cloning import VoiceCloningEngine
 
 # High-performance GPU setup
 config = get_config("high_performance_gpu")
-engine = VoiceCloningEngine(**config.__dict__)
+engine = VoiceCloningEngine(config)
 
 # Low-VRAM GPU setup
 config = get_config("low_vram_gpu")
-engine = VoiceCloningEngine(**config.__dict__)
+engine = VoiceCloningEngine(config)
 
 # CPU-only setup
 config = get_config("cpu")
-engine = VoiceCloningEngine(**config.__dict__)
+engine = VoiceCloningEngine(config)
 ```
 
 ## Getting Started
 
-### Quick Start
+### Quick Start With Examples
 
-Run the interactive quickstart:
-
-```bash
-python quickstart.py
-```
-
-This provides an interactive interface to:
-
-- Initialize the engine
-- Create voice prompts
-- Synthesize speech
-- Manage cached prompts
-
-### Run Examples
-
-View usage examples:
+Use the example scripts to verify everything works:
 
 ```bash
-python examples.py
-```
+# Direct engine usage
+python examples/01_basic_usage.py
 
-### Real-World Applications
-
-See practical use cases:
-
-```bash
-python applications.py
+# REST API client (requires server)
+python scripts/run_api.py --port 8000 &
+python examples/02_api_client.py
 ```
 
 ## First Use Checklist
@@ -408,10 +384,9 @@ python quickstart.py
 ## Next Steps
 
 1. **Read the Main Documentation**: `README.md`
-2. **Explore API**: `qwen3_voice_engine.py`
-3. **Try Examples**: `examples.py`
-4. **See Applications**: `applications.py`
-5. **Review Configuration**: `config.py`
+2. **Explore API**: `src/voice_cloning/core/__init__.py` and `src/voice_cloning/api/`
+3. **Try Examples**: `examples/*.py`
+4. **Review Configuration**: `src/voice_cloning/config/__init__.py`
 
 ## Support
 

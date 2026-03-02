@@ -31,23 +31,25 @@ from voice_cloning.config import get_recommended_config_for_hardware
 config = get_recommended_config_for_hardware()
 engine = VoiceCloningEngine(config)
 
-# Create voice clone from audio + transcript
-prompt_id = engine.create_voice_clone_prompt(
-    audio_path='voice.wav',
-    transcript='Hello, this is my voice.',
-    prompt_name='my_voice'
+# Create voice clone from audio + transcript and keep the prompt object
+voice_clone_prompt = engine.create_voice_clone_prompt(
+    audio_path="voice.wav",
+    transcript="Hello, this is my voice.",
+    prompt_name="my_voice",
 )
 
-# Synthesize text with cloned voice
-audio = engine.synthesize_voice(
-    text='Some new text to speak',
-    language='English',
-    prompt_name='my_voice'
+# Synthesize text with the cloned voice using the prompt object
+audio, sample_rate = engine.synthesize_voice(
+    text="Some new text to speak",
+    language="English",
+    voice_clone_prompt=voice_clone_prompt,
+    prompt_name="my_voice",
 )
 
 # Save output
 import soundfile as sf
-sf.write('output.wav', audio, 24000)
+
+sf.write("output.wav", audio, sample_rate)
 ```
 
 ### 2. **Using the REST API**
@@ -59,34 +61,39 @@ python scripts/run_api.py --port 8000
 # Server now running at http://localhost:8000
 ```
 
-**Use the API:**
+**Use the API (stateless prompt usage):**
 
 ```python
 import requests
 
-# Create voice clone
-response = requests.post(
-    'http://localhost:8000/api/v1/create-prompt',
-    files={'file': open('voice.wav', 'rb')},
+# Create voice clone and get serialized prompt object back
+resp = requests.post(
+    "http://localhost:8000/api/v1/create-prompt",
+    files={"audio": open("voice.wav", "rb")},
     data={
-        'transcript': 'Hello, this is my voice.',
-        'prompt_name': 'my_voice'
-    }
+        "transcript": "Hello, this is my voice.",
+        "prompt_name": "my_voice",
+        "language": "English",
+    },
 )
+resp.raise_for_status()
+data = resp.json()
+voice_clone_prompt = data["voice_clone_prompt"]  # base64-encoded prompt
 
-# Synthesize audio
-response = requests.post(
-    'http://localhost:8000/api/v1/synthesize',
+# Synthesize audio by sending the serialized prompt (no server-side cache needed)
+resp = requests.post(
+    "http://localhost:8000/api/v1/synthesize",
     json={
-        'text': 'Some new text',
-        'prompt_name': 'my_voice',
-        'language': 'English'
-    }
+        "text": "Some new text",
+        "language": "English",
+        "voice_clone_prompt": voice_clone_prompt,
+    },
 )
+resp.raise_for_status()
 
-# Save audio
-with open('output.wav', 'wb') as f:
-    f.write(response.content)
+# Save streamed WAV audio
+with open("output.wav", "wb") as f:
+    f.write(resp.content)
 ```
 
 ## Explore Examples
@@ -131,9 +138,9 @@ For best results, prepare audio with:
 ## API Endpoints
 
 ```
-POST   /api/v1/create-prompt  - Create voice clone from audio
-POST   /api/v1/synthesize     - Generate audio with cloned voice
-GET    /api/v1/download/{id}  - Download audio file
+POST   /api/v1/create-prompt  - Create voice clone from audio (returns serialized prompt object)
+POST   /api/v1/synthesize     - Generate audio with cloned voice (streams WAV audio)
+GET    /api/v1/download/{id}  - Download audio file (legacy file-based flow)
 GET    /api/v1/prompts        - List cached voice prompts
 DELETE /api/v1/prompts/{id}   - Delete voice prompt
 GET    /api/v1/health         - Check server status

@@ -42,14 +42,15 @@ voice-cloning-using-qwen3/
 │   ├── __init__.py
 │   ├── test_engine.py              # Engine tests
 │   ├── test_config.py              # Configuration tests
-│   ├── test_api.py                 # API endpoint tests
-│   └── fixtures/                    # Test fixtures and mocks
+│   ├── test_api_models.py          # API model tests
+│   └── ...                         # Additional tests
 │
 ├── examples/                        # Usage examples
-│   ├── basic_examples.py           # Basic engine usage
-│   ├── api_examples.py             # REST API examples
-│   ├── applications.py             # Real-world applications
-│   └── quickstart.py               # Quick start guide
+│   ├── 01_basic_usage.py           # Direct engine usage
+│   ├── 02_api_client.py            # REST API client (stateless prompts + streaming)
+│   ├── 03_full_workflow.py         # Full end-to-end workflow
+│   ├── 04_batch_processing.py      # Batch synthesis and prompts
+│   └── basic_examples.py           # Additional basic patterns
 │
 ├── scripts/                         # CLI scripts and runners
 │   ├── run_api.py                  # Start FastAPI server
@@ -65,11 +66,11 @@ voice-cloning-using-qwen3/
 │       └── ...
 │
 ├── docs/                            # Documentation
-│   ├── README.md                    # Main documentation
+│   ├── README.md                    # (optional) additional docs
 │   ├── INSTALL.md                   # Installation guide
-│   ├── API.md                       # REST API documentation
-│   ├── PROJECT_SUMMARY.md           # Project overview
-│   └── INDEX.md                     # Navigation guide
+│   ├── QUICKSTART.md                # Quickstart for engine + API
+│   ├── PROJECT_STRUCTURE.md         # (this file) architecture overview
+│   └── MIGRATION.md                 # Migration guide from old layout
 │
 ├── config/                          # Configuration files
 │   └── .env.example                 # Example environment file
@@ -152,13 +153,13 @@ REST API for voice cloning:
 - **models/**: Pydantic request/response schemas
 - **utils/**: Helper functions
 
-**Endpoints:**
+**Endpoints (core):**
 
 - `GET /api/v1/health` - Health check
-- `POST /api/v1/create-prompt` - Create voice prompt
-- `POST /api/v1/synthesize` - Synthesize voice
-- `GET /api/v1/download/{filename}` - Download audio
-- `GET /api/v1/prompts` - List prompts
+- `POST /api/v1/create-prompt` - Create voice prompt (returns serialized prompt object)
+- `POST /api/v1/synthesize` - Synthesize voice (streams WAV audio; prefers provided prompt object)
+- `GET /api/v1/download/{filename}` - Download audio (legacy file-based flow)
+- `GET /api/v1/prompts` - List cached prompts
 - `DELETE /api/v1/prompts/{id}` - Delete prompt
 
 **Usage:**
@@ -173,10 +174,10 @@ from voice_cloning.api import app
 
 Usage examples for different scenarios:
 
-- **basic_examples.py** - Engine usage examples
-- **api_examples.py** - REST API examples
-- **applications.py** - Real-world use cases
-- **quickstart.py** - Quick start tutorial
+- **01_basic_usage.py** - Direct engine usage and prompt objects
+- **02_api_client.py** - REST API client using serialized prompts + streaming
+- **03_full_workflow.py** - Full end-to-end workflow
+- **04_batch_processing.py** - Batch cloning and synthesis patterns
 
 ## Installation and Setup
 

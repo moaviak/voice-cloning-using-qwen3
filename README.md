@@ -45,34 +45,43 @@ pip install flash-attn --no-build-isolation
 
 Note: Flash Attention requires CUDA-compatible GPU and may need to be built on your system. If installation fails, the engine will still work without it.
 
+4. **Download the Qwen3-TTS model (recommended)**:
+
+Use the provided helper script to download `Qwen/Qwen3-TTS-12Hz-1.7B-Base` into `models/qwen3-tts`:
+
+```bash
+python scripts/download_model.py
+```
+
+After this completes successfully, the engine and API will load the model from `models/qwen-3tts` without needing to fetch weights at runtime.
+
 ## Quick Start
 
-### Basic Usage
+### Basic Usage (Engine Only)
 
 ```python
-from qwen3_voice_engine import VoiceCloningEngine
-import torch
+from voice_cloning import VoiceCloningEngine
+from voice_cloning.config import get_recommended_config_for_hardware
 
-# Initialize engine (auto-detects GPU/CPU)
-engine = VoiceCloningEngine(
-    model_path="models/qwen3-tts",
-    device=None,  # None = auto-detect
-    dtype=torch.bfloat16,
-)
+# Initialize engine (auto-detects GPU/CPU and dtype)
+config = get_recommended_config_for_hardware()
+engine = VoiceCloningEngine(config)
 
 # Step 1: Create a voice prompt from reference audio
-prompt_name = engine.create_voice_clone_prompt(
+# This returns an internal prompt object and also caches it under "my_voice".
+voice_clone_prompt = engine.create_voice_clone_prompt(
     audio_path="path/to/reference.wav",
     transcript="The transcribed text of the reference audio",
-    prompt_name="my_voice"
+    prompt_name="my_voice",
 )
 
 # Step 2: Synthesize new speech with the cloned voice
 audio, sample_rate = engine.synthesize_voice(
     text="This is new speech synthesized with the cloned voice!",
     language="English",
-    prompt_name=prompt_name,
-    output_path="output/cloned_speech.wav"
+    voice_clone_prompt=voice_clone_prompt,  # preferred for stateless usage
+    prompt_name="my_voice",                 # optional, uses cache if available
+    output_path="output/cloned_speech.wav",
 )
 ```
 
@@ -86,10 +95,10 @@ Main class for voice cloning and synthesis operations.
 
 ```python
 engine = VoiceCloningEngine(
-    model_path: Union[str, Path],
+    model_path: Union[str, Path] | EngineConfig,
     device: Optional[str] = None,
     dtype: torch.dtype = torch.bfloat16,
-    use_flash_attention: bool = False
+    use_flash_attention: bool = False,
 )
 ```
 
@@ -131,12 +140,12 @@ engine = VoiceCloningEngine(
 Create a reusable voice prompt from audio file and transcript.
 
 ```python
-prompt_name = engine.create_voice_clone_prompt(
+voice_clone_prompt = engine.create_voice_clone_prompt(
     audio_path: Union[str, Path],
     transcript: str,
     prompt_name: Optional[str] = None,
-    x_vector_only_mode: bool = False
-) -> str
+    x_vector_only_mode: bool = False,
+)
 ```
 
 **Parameters:**
@@ -148,18 +157,17 @@ prompt_name = engine.create_voice_clone_prompt(
   - `False` (default): Best quality, uses both speaker and content information
   - `True`: Faster but lower quality, uses only speaker embedding
 
-**Returns:** Prompt identifier (string name)
+**Returns:** Internal prompt object (can be passed directly to `synthesize_voice` via `voice_clone_prompt`) and is also cached under `prompt_name` if provided.
 
 **Example:**
 
 ```python
-prompt_name = engine.create_voice_clone_prompt(
+voice_clone_prompt = engine.create_voice_clone_prompt(
     audio_path="samples/john_voice.wav",
     transcript="Hello, my name is John.",
     prompt_name="john",
-    x_vector_only_mode=False
+    x_vector_only_mode=False,
 )
-# Returns: "john"
 ```
 
 ##### `synthesize_voice()`

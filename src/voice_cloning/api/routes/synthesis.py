@@ -6,10 +6,12 @@ import io
 import os
 import uuid
 import traceback
+import base64
+import pickle
 from pathlib import Path
 
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 import soundfile as sf
 
@@ -23,7 +25,15 @@ router = APIRouter()
 async def create_prompt(
     audio: UploadFile = File(..., description="Reference audio file (.wav format)"),
     transcript: str = Form(..., description="Transcription of the audio"),
-    prompt_name: str = Form(None, description="Custom name for the prompt")
+    prompt_name: str = Form(None, description="Custom name for the prompt"),
+    language: str = Form(
+        "Auto",
+        description=(
+            "Language of the reference audio. Supported values: "
+            "Auto, Chinese, English, Japanese, Korean, German, French, "
+            "Russian, Portuguese, Spanish, Italian."
+        ),
+    ),
 ):
     """
     Create a voice clone prompt from reference audio and transcript.
@@ -35,6 +45,7 @@ async def create_prompt(
     - `audio`: WAV audio file containing the reference voice sample (required)
     - `transcript`: Text transcription of what is spoken in the audio (required)
     - `prompt_name`: Optional custom name for the prompt (auto-generated if not provided)
+    - `language`: Language of the reference audio (for metadata and downstream usage)
     
     **Returns:**
     - `prompt_id`: Unique identifier for this prompt
@@ -88,11 +99,20 @@ async def create_prompt(
         
         # Create voice clone prompt
         print(f"🎤 Creating voice prompt: {prompt_id}")
-        engine.create_voice_clone_prompt(
+        voice_clone_prompt = engine.create_voice_clone_prompt(
             audio_path=str(temp_audio_path),
             transcript=transcript,
             prompt_name=prompt_name
         )
+        # Serialize prompt object to a base64-encoded string so it can be
+        # safely transported over JSON without tensor serialization issues.
+        try:
+            encoded_prompt = base64.b64encode(pickle.dumps(voice_clone_prompt)).decode("utf-8")
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to serialize voice clone prompt: {e}",
+            )
         
         # Store prompt metadata
         audio_duration = len(audio_data) / sr
@@ -103,7 +123,9 @@ async def create_prompt(
             "sample_rate": sr,
             "created_at": get_timestamp(),
             "device": engine.device,
-            "dtype": str(engine.dtype)
+            "dtype": str(engine.dtype),
+            "language": language,
+            "voice_clone_prompt": encoded_prompt,
         }
         
         print(f"✅ Prompt created: {prompt_id}")
@@ -117,6 +139,8 @@ async def create_prompt(
             sample_rate=sr,
             device=engine.device,
             dtype=str(engine.dtype),
+            language=language,
+            voice_clone_prompt=encoded_prompt,
             timestamp=get_timestamp()
         )
         
@@ -133,10 +157,9 @@ async def create_prompt(
         await audio.close()
 
 
-@router.post("/synthesize", response_model=SynthesisResponse)
+@router.post("/synthesize")
 async def synthesize_voice(
     request: SynthesisRequest,
-    background_tasks: BackgroundTasks
 ):
     """
     Synthesize speech using a voice clone prompt.
@@ -145,13 +168,13 @@ async def synthesize_voice(
     the voice characteristics from a previously created clone prompt.
     
     **Parameters:**
-    - `prompt_id`: ID of the prompt to use (from create-prompt endpoint)
+    - `voice_clone_prompt`: Raw prompt object returned from /create-prompt
+    - `prompt_id`: (Legacy) ID of a server-side stored prompt
     - `text`: Text to synthesize
     - `language`: Language code (default: English)
     
     **Returns:**
-    - Generated audio file (WAV format)
-    - Metadata about the synthesis process
+    - Streamed WAV audio as the HTTP response body
     """
     from voice_cloning.api.main import app
     
@@ -160,51 +183,92 @@ async def synthesize_voice(
         raise HTTPException(status_code=503, detail="Engine not initialized")
     
     try:
-        # Validate request
-        if request.prompt_id not in app.state.prompt_store:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Prompt not found: {request.prompt_id}. "
-                "Please create a prompt first using /api/v1/create-prompt"
-            )
-        
+        # Validate text
         if len(request.text.strip()) == 0:
             raise HTTPException(status_code=400, detail="Text cannot be empty")
         
-        # Get prompt info
-        prompt_info = app.state.prompt_store[request.prompt_id]
-        prompt_name = prompt_info["prompt_name"]
-        
-        # Generate audio
-        print(f"🎵 Synthesizing: '{request.text[:50]}...' in {request.language}")
-        
-        output_filename = f"synthesized_{request.prompt_id}_{uuid.uuid4().hex[:8]}.wav"
-        output_path = app.state.output_dir / output_filename
-        
+        # Decide how to obtain the prompt
+        voice_clone_prompt = None
+        prompt_name = None
+
+        # Preferred: stateless usage via voice_clone_prompt
+        if request.voice_clone_prompt is not None:
+            print("🎵 Synthesizing with provided voice_clone_prompt (stateless mode)")
+            try:
+                voice_clone_prompt = pickle.loads(
+                    base64.b64decode(request.voice_clone_prompt.encode("utf-8"))
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Failed to decode voice_clone_prompt: {e}",
+                )
+        else:
+            # Backward-compatible path using stored prompt_id
+            if not request.prompt_id or request.prompt_id not in app.state.prompt_store:
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"Prompt not found: {request.prompt_id}. "
+                        "Either provide 'voice_clone_prompt' from /create-prompt "
+                        "or create a prompt first using /api/v1/create-prompt"
+                    ),
+                )
+
+            prompt_info = app.state.prompt_store[request.prompt_id]
+            prompt_name = prompt_info["prompt_name"]
+            encoded_prompt = prompt_info.get("voice_clone_prompt")
+
+            if encoded_prompt is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Stored prompt missing 'voice_clone_prompt' data.",
+                )
+
+            try:
+                voice_clone_prompt = pickle.loads(
+                    base64.b64decode(encoded_prompt.encode("utf-8"))
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to decode stored voice_clone_prompt: {e}",
+                )
+
+            print(f"🎵 Synthesizing using stored prompt_id={request.prompt_id}, name={prompt_name}")
+
+        # Generate audio in-memory
+        print(f"🗣  Text: '{request.text[:50]}...' | Language: {request.language}")
+
         audio_data, sr = engine.synthesize_voice(
             text=request.text,
             language=request.language,
+            voice_clone_prompt=voice_clone_prompt,
             prompt_name=prompt_name,
-            output_path=str(output_path)
         )
-        
+
         # Calculate duration
         duration = len(audio_data) / sr if audio_data is not None else 0
-        
-        print(f"✅ Audio synthesized: {output_filename} ({duration:.2f}s)")
-        
-        # Schedule cleanup (5 minutes)
-        background_tasks.add_task(cleanup_file, str(output_path), 300)
-        
-        return SynthesisResponse(
-            success=True,
-            message="Audio synthesized successfully",
-            text=request.text,
-            language=request.language,
-            duration=duration,
-            device=engine.device,
-            audio_file=output_filename,
-            timestamp=get_timestamp()
+
+        # Serialize to WAV in-memory and stream back
+        buffer = io.BytesIO()
+        sf.write(buffer, audio_data, sr, format="WAV")
+        buffer.seek(0)
+
+        print(f"✅ Audio synthesized in-memory ({duration:.2f}s, {sr} Hz)")
+
+        headers = {
+            "X-Synthesis-Text": request.text[:200],
+            "X-Synthesis-Language": request.language,
+            "X-Synthesis-Duration": f"{duration:.4f}",
+            "X-Synthesis-Device": str(engine.device),
+            "Content-Disposition": 'attachment; filename="synthesized_audio.wav"',
+        }
+
+        return StreamingResponse(
+            buffer,
+            media_type="audio/wav",
+            headers=headers,
         )
         
     except HTTPException:
