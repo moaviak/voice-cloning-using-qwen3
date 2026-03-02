@@ -2,20 +2,26 @@
 Pydantic models for API requests and responses.
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, root_validator
+from typing import Optional, List, Any, Dict
 
 
 class PromptResponse(BaseModel):
     """Response model for create-prompt endpoint."""
     success: bool
-    prompt_id: str
-    prompt_name: str
+    prompt_id: str = Field(..., description="Server-side identifier for the prompt (for backward compatibility)")
+    prompt_name: str = Field(..., description="Human-readable name for the prompt")
     message: str
     audio_duration: float = Field(..., description="Duration of input audio in seconds")
     sample_rate: int = Field(..., description="Sample rate of input audio")
     device: str = Field(..., description="Device used (cuda:0 or cpu)")
     dtype: str = Field(..., description="Data type used (float32 or bfloat16)")
+    language: str = Field(..., description="Language associated with the reference audio")
+    voice_clone_prompt: Dict[str, Any] = Field(
+        ...,
+        description="Raw prompt object as returned by the Qwen3-TTS model; "
+        "this can be sent back to /synthesize for stateless usage."
+    )
     timestamp: str = Field(..., description="ISO format timestamp")
     
     class Config:
@@ -29,6 +35,11 @@ class PromptResponse(BaseModel):
                 "sample_rate": 24000,
                 "device": "cuda:0",
                 "dtype": "bfloat16",
+            "language": "English",
+            "voice_clone_prompt": {
+                "prompt_text": "internal prompt data from model",
+                "spk_emb": [0.1, 0.2, 0.3],
+            },
                 "timestamp": "2024-01-15T10:30:00"
             }
         }
@@ -36,14 +47,47 @@ class PromptResponse(BaseModel):
 
 class SynthesisRequest(BaseModel):
     """Request model for synthesis endpoint."""
-    prompt_id: str = Field(..., description="The prompt ID returned from create-prompt endpoint")
+    prompt_id: Optional[str] = Field(
+        None,
+        description=(
+            "Legacy prompt identifier returned from create-prompt endpoint. "
+            "Prefer sending `voice_clone_prompt` for stateless usage."
+        ),
+    )
+    voice_clone_prompt: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "Raw prompt object returned by the create-prompt endpoint. "
+            "If provided, the server will synthesize directly from this "
+            "object without relying on any server-side prompt storage."
+        ),
+    )
     text: str = Field(..., description="Text to synthesize")
-    language: str = Field("English", description="Language code (English, Chinese, Spanish, etc.)")
+    language: str = Field(
+        "Auto",
+        description=(
+            "Target language for synthesis. Supported values: "
+            "Auto, Chinese, English, Japanese, Korean, German, French, "
+            "Russian, Portuguese, Spanish, Italian."
+        ),
+    )
+
+    @root_validator
+    def validate_prompt_source(cls, values):
+        """Ensure that at least one prompt source is provided."""
+        prompt_id = values.get("prompt_id")
+        voice_clone_prompt = values.get("voice_clone_prompt")
+        if not prompt_id and voice_clone_prompt is None:
+            raise ValueError("Either 'voice_clone_prompt' or 'prompt_id' must be provided")
+        return values
     
     class Config:
         schema_extra = {
             "example": {
                 "prompt_id": "cloned-voice-12345",
+            "voice_clone_prompt": {
+                "prompt_text": "internal prompt data from model",
+            },
                 "text": "Hello, this is a test of the voice cloning system.",
                 "language": "English"
             }

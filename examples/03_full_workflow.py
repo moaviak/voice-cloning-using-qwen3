@@ -60,12 +60,14 @@ def create_sample_workflow():
         print(f"Creating voice clone from: {audio_path}")
         print(f"Transcript: {transcript[:60]}...\n")
         try:
-            prompt_name = engine.create_voice_clone_prompt(
+            # Create a language-aware voice clone and keep the raw prompt object
+            language = "English"
+            stella_prompt = engine.create_voice_clone_prompt(
                 audio_path=str(audio_path),
                 transcript=transcript,
-                prompt_name="stella_voice"
+                prompt_name="stella_voice",
             )
-            print(f"✓ Voice clone created successfully: {prompt_name}")
+            print(f"✓ Voice clone created successfully for language='{language}'")
         except Exception as e:
             print(f"✗ Error creating voice clone: {e}")
             return
@@ -79,9 +81,9 @@ def create_sample_workflow():
     print("-" * 70)
     
     prompts = engine.list_cached_prompts()
-    print(f"Cached prompts: {prompts}")
+    print(f"Cached prompts (by name): {prompts}")
     
-    if "stella_voice" in prompts:
+    if stella_prompt is not None:
         print("\nSynthesizing with stella_voice...")
         test_texts = [
             "This is a test of the voice cloning system.",
@@ -98,7 +100,8 @@ def create_sample_workflow():
                 result = engine.synthesize_voice(
                     text=text,
                     language="English",
-                    prompt_name="stella_voice"
+                    voice_clone_prompt=stella_prompt,
+                    prompt_name="stella_voice",
                 )
                 
                 # Handle both tuple and array returns

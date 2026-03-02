@@ -54,12 +54,15 @@ def main():
         print(f"  Using sample audio: {audio_path}")
         print(f"  Transcript: {transcript[:80]}...")
         try:
-            prompt_name = engine.create_voice_clone_prompt(
+            # Create a language-aware voice clone prompt and capture the raw
+            # prompt object so it can be reused or sent over the network.
+            language = "English"
+            voice_clone_prompt = engine.create_voice_clone_prompt(
                 audio_path=str(audio_path),
                 transcript=transcript,
-                prompt_name="sample_voice"
+                prompt_name="sample_voice",
             )
-            print(f"✓ Voice clone created: {prompt_name}")
+            print(f"✓ Voice clone created for language='{language}'")
         except Exception as e:
             print(f"✗ Error creating voice clone: {e}")
             return
@@ -73,10 +76,14 @@ def main():
     try:
         synthesis_text = "Hello everyone, this is a test of voice cloning technology."
         print(f"  Synthesis text: {synthesis_text}")
+        # Here we pass the raw prompt object returned above. This is the same
+        # object that the API now returns from /create-prompt and expects in
+        # the /synthesize request body.
         result = engine.synthesize_voice(
             text=synthesis_text,
-            language="Auto",
-            prompt_name="sample_voice"
+            language="English",
+            voice_clone_prompt=voice_clone_prompt,
+            prompt_name="sample_voice",
         )
         
         # Handle both tuple and array returns
@@ -99,9 +106,9 @@ def main():
     
     methods = [
         ("create_voice_clone_prompt(audio_path, transcript, prompt_name)", 
-         "Create a reusable voice clone from audio + transcript"),
-        ("synthesize_voice(text, language, prompt_name)", 
-         "Synthesize audio using a stored voice clone"),
+         "Create a reusable voice clone from audio + transcript and return the raw prompt object"),
+        ("synthesize_voice(text, language, prompt_name=None, voice_clone_prompt=None)", 
+         "Synthesize audio using either a stored prompt by name or a raw voice_clone_prompt object"),
         ("list_cached_prompts()", 
          "List all currently cached voice prompts"),
         ("clear_prompt_cache()", 

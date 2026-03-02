@@ -59,8 +59,8 @@ class BatchVoiceCloningProcessor:
                     results[prompt_name] = f"Error: Audio file not found: {audio_path}"
                     continue
                 
-                # Create prompt
-                prompt_id = self.engine.create_voice_clone_prompt(
+                # Create prompt and keep the raw prompt object for optional reuse
+                prompt_obj = self.engine.create_voice_clone_prompt(
                     audio_path=audio_path,
                     transcript=transcript,
                     prompt_name=prompt_name
@@ -68,7 +68,7 @@ class BatchVoiceCloningProcessor:
                 
                 results[prompt_name] = "Success"
                 self.created_prompts.append(prompt_name)
-                print(f"  ✓ Created: {prompt_id}")
+                print(f"  ✓ Created prompt for '{prompt_name}' (object size: {len(str(prompt_obj))} chars)")
                 
             except Exception as e:
                 results[prompt_name] = f"Error: {str(e)}"
@@ -107,11 +107,13 @@ class BatchVoiceCloningProcessor:
             try:
                 print(f"[{i}/{total}] Synthesizing: {text[:50]}...")
                 
-                # Synthesize
+                # Synthesize using prompt cached by name inside the engine.
+                # For fully stateless usage, you could also persist and pass
+                # the raw voice_clone_prompt object returned during creation.
                 result = self.engine.synthesize_voice(
                     text=text,
                     language=language,
-                    prompt_name=prompt_name
+                    prompt_name=prompt_name,
                 )
                 
                 # Handle both tuple and array returns
