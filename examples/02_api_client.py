@@ -2,7 +2,12 @@
 REST API Client Example
 
 This example shows how to interact with the Voice Cloning API server
-using the requests library.
+using the requests library in a *stateless* way:
+
+- We create a voice clone prompt
+- We receive a serialized prompt object in the response
+- We immediately pass that serialized prompt back to /synthesize
+- We save the streamed audio to disk
 
 Demonstrates:
 1. Starting the API server
@@ -210,7 +215,7 @@ def main():
         "She can scoop these things into three red bags, and we will go meet her Wednesday at the train station."
     )
     
-    print("\n[2/4] Creating voice clone...")
+    print("\n[2/4] Creating voice clone (stateless)...")
     if not sample_audio.exists():
         print(f"✗ Sample audio not found at: {sample_audio}")
         print("  Please ensure the sample_audios/1.wav file exists.")
@@ -219,7 +224,6 @@ def main():
     print(f"  Audio file: {sample_audio}")
     print(f"  Transcript: {transcript[:60]}...")
     
-    prompt_id = None
     voice_clone_prompt: Optional[str] = None
     try:
         response = client.create_voice_clone(
@@ -229,14 +233,16 @@ def main():
             language="English",
         )
         print(f"✓ Voice clone created successfully")
-        print(f"  Prompt ID (legacy): {response.get('prompt_id')}")
+        print(f"  Prompt ID (legacy, unused here): {response.get('prompt_id')}")
         print(f"  Prompt Name: {response.get('prompt_name')}")
+        # Serialized base64 string representing the internal prompt object.
+        # This example uses ONLY this string for synthesis (no cache lookup).
         voice_clone_prompt = response.get("voice_clone_prompt")
     except Exception as e:
         print(f"✗ Error creating voice clone: {e}")
         return
     
-    print("\n[3/4] Listing cached prompts (optional, server-side cache)...")
+    print("\n[3/4] Listing cached prompts (optional, not used for synthesis)...")
     try:
         prompts = client.list_prompts()
         print(f"✓ Cached prompts retrieved")
