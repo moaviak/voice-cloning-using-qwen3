@@ -3,7 +3,7 @@ Pydantic models for API requests and responses.
 """
 
 from pydantic import BaseModel, Field, model_validator
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any
 
 
 class PromptResponse(BaseModel):
@@ -17,7 +17,7 @@ class PromptResponse(BaseModel):
     device: str = Field(..., description="Device used (cuda:0 or cpu)")
     dtype: str = Field(..., description="Data type used (float32 or bfloat16)")
     language: str = Field(..., description="Language associated with the reference audio")
-    voice_clone_prompt: Dict[str, Any] = Field(
+    voice_clone_prompt: Any = Field(
         ...,
         description="Raw prompt object as returned by the Qwen3-TTS model; "
         "this can be sent back to /synthesize for stateless usage."
@@ -54,7 +54,7 @@ class SynthesisRequest(BaseModel):
             "Prefer sending `voice_clone_prompt` for stateless usage."
         ),
     )
-    voice_clone_prompt: Optional[Dict[str, Any]] = Field(
+    voice_clone_prompt: Optional[Any] = Field(
         None,
         description=(
             "Raw prompt object returned by the create-prompt endpoint. "
