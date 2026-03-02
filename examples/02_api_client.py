@@ -18,7 +18,7 @@ Requirements:
 import requests
 import time
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional
 
 
 class VoiceCloningAPIClient:
@@ -104,14 +104,14 @@ class VoiceCloningAPIClient:
     def synthesize_audio(
         self,
         text: str,
-        voice_clone_prompt: Dict[str, Any],
+        voice_clone_prompt: str,
         language: str = "Auto",
     ) -> bytes:
         """Synthesize audio using a voice clone.
         
         Args:
             text: Text to synthesize
-            voice_clone_prompt: Raw prompt object returned from the create_voice_clone call
+            voice_clone_prompt: Base64-encoded prompt string returned from the create_voice_clone call
             language: Language for synthesis (Auto or one of the 10 supported languages)
             
         Returns:
@@ -220,7 +220,7 @@ def main():
     print(f"  Transcript: {transcript[:60]}...")
     
     prompt_id = None
-    voice_clone_prompt: Optional[Dict[str, Any]] = None
+    voice_clone_prompt: Optional[str] = None
     try:
         response = client.create_voice_clone(
             audio_file=str(sample_audio),

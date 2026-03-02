@@ -6,6 +6,8 @@ import io
 import os
 import uuid
 import traceback
+import base64
+import pickle
 from pathlib import Path
 
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, BackgroundTasks
@@ -102,6 +104,15 @@ async def create_prompt(
             transcript=transcript,
             prompt_name=prompt_name
         )
+        # Serialize prompt object to a base64-encoded string so it can be
+        # safely transported over JSON without tensor serialization issues.
+        try:
+            encoded_prompt = base64.b64encode(pickle.dumps(voice_clone_prompt)).decode("utf-8")
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to serialize voice clone prompt: {e}",
+            )
         
         # Store prompt metadata
         audio_duration = len(audio_data) / sr
@@ -114,7 +125,7 @@ async def create_prompt(
             "device": engine.device,
             "dtype": str(engine.dtype),
             "language": language,
-            "voice_clone_prompt": voice_clone_prompt,
+            "voice_clone_prompt": encoded_prompt,
         }
         
         print(f"✅ Prompt created: {prompt_id}")
@@ -129,7 +140,7 @@ async def create_prompt(
             device=engine.device,
             dtype=str(engine.dtype),
             language=language,
-            voice_clone_prompt=voice_clone_prompt,
+            voice_clone_prompt=encoded_prompt,
             timestamp=get_timestamp()
         )
         
@@ -177,12 +188,21 @@ async def synthesize_voice(
             raise HTTPException(status_code=400, detail="Text cannot be empty")
         
         # Decide how to obtain the prompt
-        voice_clone_prompt = request.voice_clone_prompt
+        voice_clone_prompt = None
         prompt_name = None
 
         # Preferred: stateless usage via voice_clone_prompt
-        if voice_clone_prompt is not None:
+        if request.voice_clone_prompt is not None:
             print("🎵 Synthesizing with provided voice_clone_prompt (stateless mode)")
+            try:
+                voice_clone_prompt = pickle.loads(
+                    base64.b64decode(request.voice_clone_prompt.encode("utf-8"))
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Failed to decode voice_clone_prompt: {e}",
+                )
         else:
             # Backward-compatible path using stored prompt_id
             if not request.prompt_id or request.prompt_id not in app.state.prompt_store:
@@ -197,12 +217,22 @@ async def synthesize_voice(
 
             prompt_info = app.state.prompt_store[request.prompt_id]
             prompt_name = prompt_info["prompt_name"]
-            voice_clone_prompt = prompt_info.get("voice_clone_prompt")
+            encoded_prompt = prompt_info.get("voice_clone_prompt")
 
-            if voice_clone_prompt is None:
+            if encoded_prompt is None:
                 raise HTTPException(
                     status_code=500,
                     detail="Stored prompt missing 'voice_clone_prompt' data.",
+                )
+
+            try:
+                voice_clone_prompt = pickle.loads(
+                    base64.b64decode(encoded_prompt.encode("utf-8"))
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to decode stored voice_clone_prompt: {e}",
                 )
 
             print(f"🎵 Synthesizing using stored prompt_id={request.prompt_id}, name={prompt_name}")

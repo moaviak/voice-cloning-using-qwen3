@@ -3,7 +3,7 @@ Pydantic models for API requests and responses.
 """
 
 from pydantic import BaseModel, Field, model_validator
-from typing import Optional, List, Any
+from typing import Optional, List
 
 
 class PromptResponse(BaseModel):
@@ -17,10 +17,13 @@ class PromptResponse(BaseModel):
     device: str = Field(..., description="Device used (cuda:0 or cpu)")
     dtype: str = Field(..., description="Data type used (float32 or bfloat16)")
     language: str = Field(..., description="Language associated with the reference audio")
-    voice_clone_prompt: Any = Field(
+    voice_clone_prompt: str = Field(
         ...,
-        description="Raw prompt object as returned by the Qwen3-TTS model; "
-        "this can be sent back to /synthesize for stateless usage."
+        description=(
+            "Base64-encoded serialized voice clone prompt as returned by the "
+            "Qwen3-TTS model. This string can be sent back to /synthesize "
+            "for stateless usage."
+        ),
     )
     timestamp: str = Field(..., description="ISO format timestamp")
     
@@ -35,13 +38,10 @@ class PromptResponse(BaseModel):
                 "sample_rate": 24000,
                 "device": "cuda:0",
                 "dtype": "bfloat16",
-            "language": "English",
-            "voice_clone_prompt": {
-                "prompt_text": "internal prompt data from model",
-                "spk_emb": [0.1, 0.2, 0.3],
+                "language": "English",
+                "voice_clone_prompt": "BASE64_ENCODED_PROMPT_STRING",
+                "timestamp": "2024-01-15T10:30:00",
             },
-                "timestamp": "2024-01-15T10:30:00"
-            }
         }
 
 
@@ -54,12 +54,13 @@ class SynthesisRequest(BaseModel):
             "Prefer sending `voice_clone_prompt` for stateless usage."
         ),
     )
-    voice_clone_prompt: Optional[Any] = Field(
+    voice_clone_prompt: Optional[str] = Field(
         None,
         description=(
-            "Raw prompt object returned by the create-prompt endpoint. "
-            "If provided, the server will synthesize directly from this "
-            "object without relying on any server-side prompt storage."
+            "Base64-encoded serialized voice clone prompt returned by the "
+            "create-prompt endpoint. If provided, the server will decode "
+            "and synthesize directly from this object without relying on "
+            "any server-side prompt storage."
         ),
     )
     text: str = Field(..., description="Text to synthesize")
@@ -83,12 +84,10 @@ class SynthesisRequest(BaseModel):
         schema_extra = {
             "example": {
                 "prompt_id": "cloned-voice-12345",
-            "voice_clone_prompt": {
-                "prompt_text": "internal prompt data from model",
-            },
+                "voice_clone_prompt": "BASE64_ENCODED_PROMPT_STRING",
                 "text": "Hello, this is a test of the voice cloning system.",
-                "language": "English"
-            }
+                "language": "English",
+            },
         }
 
 
