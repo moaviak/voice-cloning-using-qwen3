@@ -11,7 +11,7 @@ MODELS_ROOT = PROJECT_ROOT / "models"
 # Keep full model IDs here because they are required for downloading.
 MODEL_DOWNLOADS = {
     "voice-cloning-model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-    "tts-model": "Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    "tts-model": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
 }
 
 
