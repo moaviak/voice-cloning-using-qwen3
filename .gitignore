@@ -70,4 +70,5 @@ htmlcov/
 Thumbs.db
 
 # model
-qwen3-tts
+models/voice-cloning-model
+models/tts-model

@@ -34,7 +34,7 @@ def example_1_initialize_engine():
     try:
         # Initialize engine
         engine = VoiceCloningEngine(
-            model_path="models/qwen3-tts",  # Path to your model
+            model_path="models/voice-cloning-model",  # Path to your model
             device=config.device,
             dtype=config.dtype
         )
@@ -46,7 +46,7 @@ def example_1_initialize_engine():
         
     except FileNotFoundError as e:
         print(f"❌ Error: {e}")
-        print("Please ensure the model is at 'models/qwen3-tts/'")
+        print("Please ensure the model is at 'models/voice-cloning-model/'")
         return None
 
 
@@ -184,7 +184,7 @@ from voice_cloning.config import get_recommended_config_for_hardware
 # Step 1: Setup
 config = get_recommended_config_for_hardware()
 engine = VoiceCloningEngine(
-    model_path="models/qwen3-tts",
+    model_path="models/voice-cloning-model",
     device=config.device,
     dtype=config.dtype
 )

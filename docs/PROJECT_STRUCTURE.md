@@ -60,7 +60,7 @@ voice-cloning-using-qwen3/
 │   └── test.ipynb                  # Testing notebook for Colab
 │
 ├── models/                          # Model files (gitignored)
-│   └── qwen3-tts/                  # Model directory
+│   └── voice-cloning-model/                  # Model directory
 │       ├── config.json
 │       ├── model.safetensors
 │       └── ...
@@ -209,7 +209,7 @@ pip install -r requirements.txt
 
 ### 4. Download Model
 
-Place the Qwen3-TTS model in `models/qwen3-tts/`
+Place the speech model model in `models/voice-cloning-model/`
 
 ## Running the Code
 
@@ -228,7 +228,7 @@ config = get_recommended_config_for_hardware()
 
 # Initialize engine
 engine = VoiceCloningEngine(
-    model_path="models/qwen3-tts",
+    model_path="models/voice-cloning-model",
     device=config.device,
     dtype=config.dtype
 )
@@ -400,7 +400,7 @@ engine.clear_prompt_cache()
 | API Examples    | `examples/api_examples.py`             |
 | Tests           | `tests/`                               |
 | Documentation   | `docs/`                                |
-| Model Files     | `models/qwen3-tts/`                    |
+| Model Files     | `models/voice-cloning-model/`                    |
 
 ## Support and Documentation
 

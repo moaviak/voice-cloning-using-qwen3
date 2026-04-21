@@ -1,7 +1,7 @@
 """
 Voice Cloning Package
 
-A comprehensive voice cloning system built with Qwen3-TTS.
+A comprehensive voice cloning system.
 
 Modules:
     - core: Voice cloning engine and core functionality

@@ -10,6 +10,8 @@ import os
 import traceback
 from pathlib import Path
 import sys
+import torch
+from qwen_tts import Qwen3TTSModel
 
 # Add parent directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -30,7 +32,7 @@ def create_app() -> FastAPI:
     """
     app = FastAPI(
         title="Voice Cloning API",
-        description="API for creating voice clones and synthesizing speech using Qwen3-TTS",
+        description="API for creating voice clones and synthesizing speech",
         version="1.0.0",
         docs_url="/api/docs",
         redoc_url="/api/redoc",
@@ -48,6 +50,7 @@ def create_app() -> FastAPI:
 
     # Global state
     app.state.engine = None
+    app.state.tts_model = None
     app.state.prompt_store = {}
     app.state.output_dir = Path("./api_output")
     app.state.temp_audio_dir = Path("./api_temp_audio")
@@ -72,9 +75,9 @@ def create_app() -> FastAPI:
             # Determine model path
             model_path = None
             possible_paths = [
-                os.path.join(os.path.dirname(__file__), "../../models/qwen3-tts"),
-                os.path.join(os.path.dirname(__file__), "../../../models/qwen3-tts"),
-                "/content/models/qwen3-tts",  # Colab path
+                os.path.join(os.path.dirname(__file__), "../../models/voice-cloning-model"),
+                os.path.join(os.path.dirname(__file__), "../../../models/voice-cloning-model"),
+                "/content/models/voice-cloning-model",  # Colab path
             ]
             
             for path in possible_paths:
@@ -95,6 +98,32 @@ def create_app() -> FastAPI:
                 dtype=config.dtype
             )
             print("✅ Engine initialized successfully")
+
+            # Determine custom-voice TTS model path
+            tts_model_path = None
+            possible_tts_paths = [
+                os.path.join(os.path.dirname(__file__), "../../models/tts-model"),
+                os.path.join(os.path.dirname(__file__), "../../../models/tts-model"),
+                "/content/models/tts-model",  # Colab path
+            ]
+            for path in possible_tts_paths:
+                if os.path.exists(path):
+                    tts_model_path = path
+                    print(f"✓ Found TTS model at: {tts_model_path}")
+                    break
+
+            if not tts_model_path:
+                raise FileNotFoundError(
+                    f"TTS model not found in any of: {possible_tts_paths}. "
+                    "Please ensure the model is in the correct location."
+                )
+
+            app.state.tts_model = Qwen3TTSModel.from_pretrained(
+                tts_model_path,
+                device_map=config.device or "cpu",
+                dtype=config.dtype if config.device and "cuda" in config.device else torch.float32,
+            )
+            print("✅ TTS model initialized successfully")
             
         except Exception as e:
             print(f"❌ Failed to initialize engine: {str(e)}")
@@ -110,6 +139,9 @@ def create_app() -> FastAPI:
                 if hasattr(app.state.engine, 'clear_prompt_cache'):
                     app.state.engine.clear_prompt_cache()
                 del app.state.engine
+            if app.state.tts_model:
+                print("🔌 Shutting down TTS model...")
+                del app.state.tts_model
                 print("✅ Cleanup complete")
         except Exception as e:
             print(f"⚠️ Error during shutdown: {str(e)}")
@@ -131,6 +163,7 @@ def create_app() -> FastAPI:
                 "health_check": "GET /api/v1/health",
                 "create_prompt": "POST /api/v1/create-prompt",
                 "synthesize": "POST /api/v1/synthesize",
+                "tts": "POST /api/v1/tts",
                 "download": "GET /api/v1/download/{filename}",
                 "list_prompts": "GET /api/v1/prompts",
                 "delete_prompt": "DELETE /api/v1/prompts/{prompt_id}"
@@ -147,6 +180,7 @@ def create_app() -> FastAPI:
                 "health": "/api/v1/health",
                 "create_prompt": "POST /api/v1/create-prompt",
                 "synthesize": "POST /api/v1/synthesize",
+                "tts": "POST /api/v1/tts",
                 "download": "GET /api/v1/download/{filename}",
                 "list_prompts": "GET /api/v1/prompts",
                 "delete_prompt": "DELETE /api/v1/prompts/{prompt_id}"
@@ -154,10 +188,11 @@ def create_app() -> FastAPI:
         }
 
     # Import and register routes
-    from voice_cloning.api.routes import health, synthesis, management
+    from voice_cloning.api.routes import health, synthesis, management, tts
     
     app.include_router(health.router, prefix="/api/v1", tags=["health"])
     app.include_router(synthesis.router, prefix="/api/v1", tags=["synthesis"])
+    app.include_router(tts.router, prefix="/api/v1", tags=["tts"])
     app.include_router(management.router, prefix="/api/v1", tags=["management"])
 
     return app

@@ -81,7 +81,7 @@ class VoiceCloningAPIClient:
             audio_file: Path to .wav audio file
             transcript: Text transcript of the audio
             prompt_name: Name to store the voice prompt as
-            language: Language of the reference audio (one of the 10 Qwen3-TTS languages)
+            language: Language of the reference audio (one of the supported synthesis languages)
             
         Returns:
             Response with prompt ID and metadata
