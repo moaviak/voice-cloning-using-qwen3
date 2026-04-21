@@ -30,7 +30,7 @@ def create_app() -> FastAPI:
     """
     app = FastAPI(
         title="Voice Cloning API",
-        description="API for creating voice clones and synthesizing speech using Qwen3-TTS",
+        description="API for creating voice clones and synthesizing speech",
         version="1.0.0",
         docs_url="/api/docs",
         redoc_url="/api/redoc",
@@ -72,9 +72,9 @@ def create_app() -> FastAPI:
             # Determine model path
             model_path = None
             possible_paths = [
-                os.path.join(os.path.dirname(__file__), "../../models/qwen3-tts"),
-                os.path.join(os.path.dirname(__file__), "../../../models/qwen3-tts"),
-                "/content/models/qwen3-tts",  # Colab path
+                os.path.join(os.path.dirname(__file__), "../../models/voice-cloning-model"),
+                os.path.join(os.path.dirname(__file__), "../../../models/voice-cloning-model"),
+                "/content/models/voice-cloning-model",  # Colab path
             ]
             
             for path in possible_paths:

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 class VoiceCloningEngine:
     """
-    Engine for voice cloning using Qwen3-TTS-12Hz-1.7B-Base model.
+    Engine for voice cloning using a local speech model.
     Supports GPU/CPU detection and automatic loading.
     """
 
@@ -32,7 +32,7 @@ class VoiceCloningEngine:
         Initialize the Voice Cloning Engine.
 
         Args:
-            model_path: Either an EngineConfig object OR path to the local Qwen3-TTS model directory.
+            model_path: Either an EngineConfig object OR path to the local model directory.
                        Can be a string/Path for backward compatibility.
             device: Device to use ('cuda', 'cpu', or None for auto-detection).
                    Ignored if model_path is an EngineConfig object.
@@ -94,13 +94,13 @@ class VoiceCloningEngine:
 
     def _load_model(self) -> None:
         """
-        Load the Qwen3-TTS model from local path.
+        Load the speech model from local path.
 
         Raises:
             RuntimeError: If model loading fails
         """
         try:
-            print(f"\nLoading Qwen3-TTS model from: {self.model_path}")
+            print(f"\nLoading speech model from: {self.model_path}")
             print(f"Device: {self.device}")
             print(f"DType: {self.dtype}")
             
@@ -146,7 +146,7 @@ class VoiceCloningEngine:
                                Set False for better cloning quality.
 
         Returns:
-            Raw prompt object as returned by the underlying Qwen3-TTS model.
+            Raw prompt object as returned by the underlying model.
             This object can be sent over the wire (e.g. via API) and later
             passed back into `synthesize_voice` via the `voice_clone_prompt`
             argument for fully stateless usage.

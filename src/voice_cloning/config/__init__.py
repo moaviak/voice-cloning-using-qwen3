@@ -14,8 +14,8 @@ class EngineConfig:
     """Configuration for VoiceCloningEngine."""
 
     # Model Configuration
-    model_path: str = "models/qwen3-tts"
-    """Path to the Qwen3-TTS model directory."""
+    model_path: str = "models/voice-cloning-model"
+    """Path to the voice cloning model directory."""
 
     # Device Configuration
     device: Optional[str] = None
@@ -53,7 +53,7 @@ class EngineConfig:
 
     # Audio Configuration
     sample_rate: int = 24000
-    """Audio sample rate in Hz. Fixed at 24000 for Qwen3-TTS."""
+    """Audio sample rate in Hz. Fixed at 24000 for the speech model."""
 
     default_language: str = "Auto"
     """Default language for text-to-speech synthesis.
@@ -101,7 +101,7 @@ class EngineConfig:
         "Spanish",
         "Italian",
     )
-    """Languages supported by Qwen3-TTS."""
+    """Languages supported by the speech model."""
 
     def validate(self) -> bool:
         """Validate configuration settings."""

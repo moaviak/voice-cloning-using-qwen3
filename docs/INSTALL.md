@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide walks you through installing and setting up the Qwen3-TTS Voice Cloning Engine on your system.
+This guide walks you through installing and setting up the speech model Voice Cloning Engine on your system.
 
 ## System Requirements
 
@@ -112,10 +112,10 @@ This will check:
 
 ### 5. Download/Verify Model Files
 
-The model files should already be in `models/qwen3-tts/`. Verify the required files are present:
+The model files should already be in `models/voice-cloning-model/`. Verify the required files are present:
 
 ```bash
-ls -lh models/qwen3-tts/
+ls -lh models/voice-cloning-model/
 ```
 
 Expected files:
@@ -129,12 +129,8 @@ Expected files:
 If files are missing, download them using:
 
 ```bash
-# Using Hugging Face Hub
-huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-Base --local-dir models/qwen3-tts
-
-# Or using ModelScope (faster for mainland China)
-pip install -U modelscope
-modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-Base --local_dir models/qwen3-tts
+# Recommended: use the bundled downloader to fetch all required models
+python scripts/download_model.py
 ```
 
 ## Configuration
@@ -161,7 +157,7 @@ from voice_cloning.config import EngineConfig
 import torch
 
 cfg = EngineConfig(
-    model_path="models/qwen3-tts",
+    model_path="models/voice-cloning-model",
     device="cuda:0",               # or "cpu"
     dtype=torch.bfloat16,          # or torch.float32
 )
@@ -226,11 +222,11 @@ Solutions:
 
 ```python
 # Option 1: Use CPU instead
-engine = VoiceCloningEngine("models/qwen3-tts", device="cpu")
+engine = VoiceCloningEngine("models/voice-cloning-model", device="cpu")
 
 # Option 2: Use lower precision
 engine = VoiceCloningEngine(
-    "models/qwen3-tts",
+    "models/voice-cloning-model",
     device="cuda:0",
     dtype=torch.float32
 )
@@ -264,7 +260,7 @@ Solutions:
 
 3. Fall back to CPU:
    ```python
-   engine = VoiceCloningEngine("models/qwen3-tts", device="cpu")
+   engine = VoiceCloningEngine("models/voice-cloning-model", device="cpu")
    ```
 
 ### Audio File Issues
@@ -289,7 +285,7 @@ Solution:
 ```python
 # Engine works fine without Flash Attention
 engine = VoiceCloningEngine(
-    "models/qwen3-tts",
+    "models/voice-cloning-model",
     use_flash_attention=False  # Disable Flash Attention
 )
 ```
@@ -395,7 +391,7 @@ If you encounter issues:
 1. Check this installation guide
 2. Review `test_setup.py` output for specific errors
 3. Check README.md troubleshooting section
-4. Review official Qwen3-TTS documentation: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base
+4. Review the official speech model documentation from your model provider
 5. Open an issue with:
    - Output of `python test_setup.py`
    - Python version
@@ -433,5 +429,5 @@ conda env remove -n voice-cloning
 To clean up model files (optional, models are ~3.4 GB):
 
 ```bash
-rm -rf models/qwen3-tts
+rm -rf models/voice-cloning-model
 ```

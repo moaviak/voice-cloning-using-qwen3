@@ -272,12 +272,12 @@ python your_script.py
 
 ### Issue 2: Can't find model files
 
-Make sure `models/qwen3-tts/` is in the project root:
+Make sure `models/voice-cloning-model/` is in the project root:
 
 ```bash
 voice-cloning-using-qwen3/
 ├── models/
-│   └── qwen3-tts/
+│   └── voice-cloning-model/
 │       ├── model.safetensors
 │       ├── config.json
 │       └── ...

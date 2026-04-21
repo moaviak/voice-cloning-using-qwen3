@@ -21,7 +21,7 @@ class PromptResponse(BaseModel):
         ...,
         description=(
             "Base64-encoded serialized voice clone prompt as returned by the "
-            "Qwen3-TTS model. This string can be sent back to /synthesize "
+            "voice cloning model. This string can be sent back to /synthesize "
             "for stateless usage."
         ),
     )

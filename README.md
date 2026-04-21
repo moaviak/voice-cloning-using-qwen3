@@ -1,6 +1,6 @@
-# Qwen3-TTS Voice Cloning Engine
+# Voice Cloning Engine
 
-A Python-based voice cloning system built on Qwen3-TTS-12Hz-1.7B-Base model. This engine enables rapid voice cloning from 3-5 second audio samples and synthesizes new speech with the cloned voice.
+A Python-based voice cloning system built on a speech model. This engine enables rapid voice cloning from 3-5 second audio samples and synthesizes new speech with the cloned voice.
 
 ## Features
 
@@ -45,15 +45,17 @@ pip install flash-attn --no-build-isolation
 
 Note: Flash Attention requires CUDA-compatible GPU and may need to be built on your system. If installation fails, the engine will still work without it.
 
-4. **Download the Qwen3-TTS model (recommended)**:
+4. **Download the required models (recommended)**:
 
-Use the provided helper script to download `Qwen/Qwen3-TTS-12Hz-1.7B-Base` into `models/qwen3-tts`:
+Use the provided helper script to download the required models into:
+- `models/voice-cloning-model`
+- `models/tts-model`
 
 ```bash
 python scripts/download_model.py
 ```
 
-After this completes successfully, the engine and API will load the model from `models/qwen-3tts` without needing to fetch weights at runtime.
+After this completes successfully, the engine and API load from local model directories without fetching weights at runtime.
 
 ## Quick Start
 
@@ -104,7 +106,7 @@ engine = VoiceCloningEngine(
 
 **Parameters:**
 
-- `model_path`: Path to the Qwen3-TTS model directory (required)
+- `model_path`: Path to the voice cloning model directory (required)
 - `device`: Device to use ('cuda:0', 'cpu', or None for auto-detection)
 - `dtype`: Data type for inference (torch.bfloat16 or torch.float32)
   - Use `torch.bfloat16` for faster GPU inference (default)
@@ -115,11 +117,11 @@ engine = VoiceCloningEngine(
 
 ```python
 # Auto-detect GPU/CPU
-engine = VoiceCloningEngine("models/qwen3-tts")
+engine = VoiceCloningEngine("models/voice-cloning-model")
 
 # Force GPU with Flash Attention
 engine = VoiceCloningEngine(
-    "models/qwen3-tts",
+    "models/voice-cloning-model",
     device="cuda:0",
     dtype=torch.bfloat16,
     use_flash_attention=True
@@ -127,7 +129,7 @@ engine = VoiceCloningEngine(
 
 # Force CPU
 engine = VoiceCloningEngine(
-    "models/qwen3-tts",
+    "models/voice-cloning-model",
     device="cpu",
     dtype=torch.float32
 )
@@ -296,7 +298,7 @@ The engine supports the following languages:
 ### Auto-Detection (Recommended)
 
 ```python
-engine = VoiceCloningEngine("models/qwen3-tts", device=None)
+engine = VoiceCloningEngine("models/voice-cloning-model", device=None)
 ```
 
 The engine automatically uses GPU if available, otherwise CPU.
@@ -306,7 +308,7 @@ The engine automatically uses GPU if available, otherwise CPU.
 ```python
 import torch
 engine = VoiceCloningEngine(
-    "models/qwen3-tts",
+    "models/voice-cloning-model",
     device="cuda:0",
     dtype=torch.bfloat16,  # Better performance
     use_flash_attention=True  # If installed
@@ -318,7 +320,7 @@ engine = VoiceCloningEngine(
 ```python
 import torch
 engine = VoiceCloningEngine(
-    "models/qwen3-tts",
+    "models/voice-cloning-model",
     device="cpu",
     dtype=torch.float32  # Better compatibility on CPU
 )
@@ -350,7 +352,7 @@ from qwen3_voice_engine import VoiceCloningEngine
 import torch
 
 # Initialize
-engine = VoiceCloningEngine("models/qwen3-tts")
+engine = VoiceCloningEngine("models/voice-cloning-model")
 
 # Create prompt
 prompt = engine.create_voice_clone_prompt(
@@ -448,14 +450,14 @@ print(engine.list_cached_prompts())  # ["male", "female"]
 1. Use CPU instead:
 
    ```python
-   engine = VoiceCloningEngine("models/qwen3-tts", device="cpu")
+   engine = VoiceCloningEngine("models/voice-cloning-model", device="cpu")
    ```
 
 2. Use float32 instead of bfloat16:
 
    ```python
    engine = VoiceCloningEngine(
-       "models/qwen3-tts",
+       "models/voice-cloning-model",
        dtype=torch.float32
    )
    ```
@@ -470,7 +472,7 @@ print(engine.list_cached_prompts())  # ["male", "female"]
 
 ```python
 from pathlib import Path
-model_path = Path("models/qwen3-tts")
+model_path = Path("models/voice-cloning-model")
 assert model_path.exists(), f"Model not found at {model_path.absolute()}"
 ```
 
@@ -514,7 +516,7 @@ If `flash-attn` installation fails, the engine will work without it. Simply set 
 
 ## Model Information
 
-**Model**: Qwen3-TTS-12Hz-1.7B-Base
+**Model**: speech model-12Hz-1.7B-Base
 
 - **Parameters**: 1.7 billion
 - **Sample Rate**: 24000 Hz (24 kHz)
@@ -530,7 +532,7 @@ project/
 ├── qwen3_voice_engine.py      # Main engine implementation
 ├── examples.py                # Usage examples
 ├── requirements.txt           # Python dependencies
-├── models/qwen3-tts/          # Model directory (your model files)
+├── models/voice-cloning-model/          # Model directory (your model files)
 │   ├── config.json
 │   ├── model.safetensors
 │   ├── generation_config.json
@@ -541,21 +543,21 @@ project/
 
 ## License
 
-This implementation wraps the Qwen3-TTS model which is licensed under Apache 2.0.
+This implementation wraps a speech model licensed under Apache 2.0.
 
 ## References
 
-- [Qwen3-TTS HuggingFace Hub](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base)
-- [Qwen3-TTS GitHub](https://github.com/QwenLM/Qwen3-TTS)
-- [Qwen3-TTS Technical Report](https://arxiv.org/abs/2601.15621)
+- Speech Model HuggingFace Hub
+- Speech model GitHub repository
+- [speech model Technical Report](https://arxiv.org/abs/2601.15621)
 
 ## Citation
 
 If you use this engine in your research, please cite:
 
 ```bibtex
-@article{Qwen3-TTS,
-  title={Qwen3-TTS Technical Report},
+@article{speech model,
+  title={speech model Technical Report},
   author={Hangrui Hu and others},
   journal={arXiv preprint arXiv:2601.15621},
   year={2026}
@@ -569,4 +571,4 @@ For issues and questions:
 1. Check the [Troubleshooting](#troubleshooting) section
 2. Review the examples in `examples.py`
 3. Check the docstrings in `qwen3_voice_engine.py`
-4. Refer to the [Qwen3-TTS documentation](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base)
+4. Refer to the speech model documentation from your provider
