@@ -134,3 +134,16 @@ class ErrorResponse(BaseModel):
     error: str
     details: Optional[str] = None
     timestamp: str
+
+
+class TTSRequest(BaseModel):
+    """Request model for custom voice TTS endpoint."""
+    text: str = Field(..., description="Text to synthesize")
+    speaker: str = Field(
+        "aiden",
+        description="Speaker identifier supported by the loaded TTS model",
+    )
+    language: str = Field(
+        "english",
+        description="Language identifier supported by the loaded TTS model",
+    )
