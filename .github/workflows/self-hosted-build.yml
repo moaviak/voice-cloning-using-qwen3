@@ -105,6 +105,19 @@ jobs:
         run: |
           set -euo pipefail
 
+          echo "=== Systemd service status ==="
+          sudo systemctl status fastapi --no-pager || true
+
+          echo "=== Last 50 lines of journald logs ==="
+          sudo journalctl -u fastapi -n 50 --no-pager || true
+
+          echo "=== Checking if process is actually running ==="
+          pgrep -fa python || echo "No python process found"
+
+          echo "=== Checking if port 8000 is bound ==="
+          ss -tlnp | grep 8000 || echo "Nothing listening on port 8000"
+
+          echo "=== Attempting health check ==="
           for i in $(seq 1 30); do
             if curl -fsS "http://127.0.0.1:8000/api/v1/health" > /tmp/health.json; then
               echo "Production health check passed."
@@ -115,6 +128,7 @@ jobs:
             sleep 5
           done
 
-          echo "Production health check failed. Rolling back..."
-          sudo systemctl stop fastapi
+          echo "=== FINAL systemd status ==="
+          sudo systemctl status fastapi --no-pager || true
+          sudo journalctl -u fastapi -n 100 --no-pager || true
           exit 1
