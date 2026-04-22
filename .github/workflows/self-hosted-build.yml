@@ -23,9 +23,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m venv ${{ github.workspace }}/venv
-          ${{ github.workspace }}/venv/bin/pip install --upgrade pip
-          ${{ github.workspace }}/venv/bin/pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Ensure required models exist
         run: |
@@ -53,9 +52,33 @@ jobs:
         run: |
           set -euo pipefail
 
-          ${{ github.workspace }}/venv/bin/python scripts/run_api.py --host 127.0.0.1 --port 8000 > api.log 2>&1 &
+          python scripts/run_api.py --host 127.0.0.1 --port 8000 > api.log 2>&1 &
           API_PID=$!
-          # ... rest unchanged
+          echo "API started with PID: $API_PID"
+
+          cleanup() {
+            if kill -0 "$API_PID" >/dev/null 2>&1; then
+              echo "Stopping API server (PID: $API_PID)"
+              kill "$API_PID"
+              wait "$API_PID" || true
+            fi
+          }
+          trap cleanup EXIT
+
+          for i in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:8000/api/v1/health" > /tmp/health.json; then
+              echo "Health check passed."
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "Waiting for API to become ready... ($i/60)"
+            sleep 5
+          done
+
+          echo "Health check failed. API did not become ready in time."
+          echo "---- API LOGS ----"
+          cat api.log
+          exit 1
 
   deploy:
     runs-on: self-hosted
@@ -82,19 +105,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "=== Systemd service status ==="
-          sudo systemctl status fastapi --no-pager || true
-
-          echo "=== Last 50 lines of journald logs ==="
-          sudo journalctl -u fastapi -n 50 --no-pager || true
-
-          echo "=== Checking if process is actually running ==="
-          pgrep -fa python || echo "No python process found"
-
-          echo "=== Checking if port 8000 is bound ==="
-          ss -tlnp | grep 8000 || echo "Nothing listening on port 8000"
-
-          echo "=== Attempting health check ==="
           for i in $(seq 1 30); do
             if curl -fsS "http://127.0.0.1:8000/api/v1/health" > /tmp/health.json; then
               echo "Production health check passed."
@@ -105,7 +115,6 @@ jobs:
             sleep 5
           done
 
-          echo "=== FINAL systemd status ==="
-          sudo systemctl status fastapi --no-pager || true
-          sudo journalctl -u fastapi -n 100 --no-pager || true
+          echo "Production health check failed. Rolling back..."
+          sudo systemctl stop fastapi
           exit 1
