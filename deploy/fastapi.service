@@ -4,10 +4,16 @@ After=network.target
 
 [Service]
 Type=simple
-# Match the user your GitHub runner uses
 User=ubuntu
 WorkingDirectory=/home/ubuntu/actions-runner/_work/voice-cloning-using-qwen3/voice-cloning-using-qwen3
-ExecStart=/usr/bin/python3 scripts/run_api.py --host 127.0.0.1 --port 8000
+
+# Use venv Python directly — no need to activate
+ExecStart=/home/ubuntu/actions-runner/_work/voice-cloning-using-qwen3/voice-cloning-using-qwen3/venv/bin/python scripts/run_api.py --host 127.0.0.1 --port 8000
+
+# Explicitly set PATH and PYTHONPATH for safety
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/home/ubuntu/actions-runner/_work/voice-cloning-using-qwen3/voice-cloning-using-qwen3/venv/bin:/usr/bin:/bin
+
 Restart=always
 RestartSec=5
 StandardOutput=journal
