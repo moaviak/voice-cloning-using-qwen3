@@ -1,4 +1,4 @@
-name: Self-Hosted Build
+name: Self-Hosted Build & Deploy
 
 on:
   push:
@@ -33,17 +33,14 @@ jobs:
           TTS_MODEL_DIR="models/tts-model"
 
           missing=0
-
           if [ ! -f "$VOICE_MODEL_DIR/config.json" ]; then
             echo "Voice cloning model not found at $VOICE_MODEL_DIR"
             missing=1
           fi
-
           if [ ! -f "$TTS_MODEL_DIR/config.json" ]; then
             echo "TTS model not found at $TTS_MODEL_DIR"
             missing=1
           fi
-
           if [ "$missing" -eq 1 ]; then
             echo "Downloading missing models..."
             python scripts/download_model.py
@@ -81,4 +78,43 @@ jobs:
           echo "Health check failed. API did not become ready in time."
           echo "---- API LOGS ----"
           cat api.log
+          exit 1
+
+  deploy:
+    runs-on: self-hosted
+    # Only deploy on push to main/master, not on PRs
+    if: github.event_name == 'push'
+    # Only deploy if smoke test passed
+    needs: build-and-smoke-test
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reload systemd and restart API service
+        run: |
+          # Copy the service file if it changed
+          sudo cp deploy/fastapi.service /etc/systemd/system/fastapi.service
+
+          sudo systemctl daemon-reload
+          sudo systemctl enable fastapi
+          sudo systemctl restart fastapi
+
+      - name: Wait for service to be healthy
+        run: |
+          set -euo pipefail
+
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8000/api/v1/health" > /tmp/health.json; then
+              echo "Production health check passed."
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 5
+          done
+
+          echo "Production health check failed. Rolling back..."
+          sudo systemctl stop fastapi
           exit 1

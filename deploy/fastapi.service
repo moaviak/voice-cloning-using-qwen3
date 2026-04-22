@@ -1,0 +1,17 @@
+[Unit]
+Description=FastAPI Application
+After=network.target
+
+[Service]
+Type=simple
+# Match the user your GitHub runner uses
+User=ubuntu
+WorkingDirectory=/home/ubuntu/actions-runner/_work/voice-cloning-using-qwen3/voice-cloning-using-qwen3
+ExecStart=/usr/bin/python3 scripts/run_api.py --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
