@@ -61,13 +61,6 @@ async def create_prompt(
         raise HTTPException(status_code=503, detail="Engine not initialized")
     
     try:
-        # Validate file
-        if audio.content_type not in ["audio/wav", "audio/x-wav", "application/octet-stream"]:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid file format. Please upload a WAV file."
-            )
-        
         if len(transcript.strip()) == 0:
             raise HTTPException(
                 status_code=400,
@@ -78,8 +71,35 @@ async def create_prompt(
         contents = await audio.read()
         audio_bytes = io.BytesIO(contents)
         
+        # Validate audio format by decoding content (more reliable than MIME type
+        # because clients like Postman may send varying WAV content types).
+        allowed_content_types = {
+            "audio/wav",
+            "audio/wave",
+            "audio/x-wav",
+            "audio/vnd.wave",
+            "application/wav",
+            "application/x-wav",
+            "application/octet-stream",
+        }
+        filename = (audio.filename or "").lower()
+        is_wav_name = filename.endswith(".wav")
+        content_type = (audio.content_type or "").lower()
+
+        if content_type and content_type not in allowed_content_types and not is_wav_name:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file format. Please upload a WAV file.",
+            )
+
         # Load audio
-        audio_data, sr = sf.read(audio_bytes)
+        try:
+            audio_data, sr = sf.read(audio_bytes)
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid audio file. Could not decode WAV content.",
+            )
         
         # Validate audio
         if len(audio_data) == 0:
