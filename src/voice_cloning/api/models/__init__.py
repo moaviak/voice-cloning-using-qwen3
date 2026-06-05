@@ -138,7 +138,11 @@ class ErrorResponse(BaseModel):
 
 class TTSRequest(BaseModel):
     """Request model for custom voice TTS endpoint."""
-    text: str = Field(..., description="Text to synthesize")
+    text: List[str] = Field(
+        ...,
+        min_length=1,
+        description="Texts to synthesize; processed in batches and combined into one audio stream",
+    )
     speaker: str = Field(
         "aiden",
         description="Speaker identifier supported by the loaded TTS model",
@@ -147,3 +151,9 @@ class TTSRequest(BaseModel):
         "english",
         description="Language identifier supported by the loaded TTS model",
     )
+
+    @model_validator(mode="after")
+    def validate_texts(self) -> "TTSRequest":
+        if any(len(entry.strip()) == 0 for entry in self.text):
+            raise ValueError("Text entries cannot be empty")
+        return self
