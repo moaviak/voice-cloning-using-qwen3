@@ -59,8 +59,8 @@ async def delete_prompt(prompt_id: str):
         if prompt_id not in app.state.prompt_store:
             raise HTTPException(status_code=404, detail="Prompt not found")
         
-        # Remove from store
-        del app.state.prompt_store[prompt_id]
+        async with app.state.prompt_store_lock:
+            del app.state.prompt_store[prompt_id]
         
         # Clear from engine cache if available
         if hasattr(engine, 'prompt_cache') and prompt_id in engine.prompt_cache:

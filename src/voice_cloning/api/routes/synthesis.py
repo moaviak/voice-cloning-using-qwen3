@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 import soundfile as sf
 
 from voice_cloning.api.models import PromptResponse, SynthesisRequest, SynthesisResponse
-from voice_cloning.api.utils import get_timestamp, cleanup_file
+from voice_cloning.api.utils import get_timestamp, cleanup_file, run_inference
 
 router = APIRouter()
 
@@ -119,10 +119,11 @@ async def create_prompt(
         
         # Create voice clone prompt
         print(f"🎤 Creating voice prompt: {prompt_id}")
-        voice_clone_prompt = engine.create_voice_clone_prompt(
+        voice_clone_prompt = await run_inference(
+            engine.create_voice_clone_prompt,
             audio_path=str(temp_audio_path),
             transcript=transcript,
-            prompt_name=prompt_name
+            prompt_name=prompt_name,
         )
         # Serialize prompt object to a base64-encoded string so it can be
         # safely transported over JSON without tensor serialization issues.
@@ -136,17 +137,18 @@ async def create_prompt(
         
         # Store prompt metadata
         audio_duration = len(audio_data) / sr
-        app.state.prompt_store[prompt_id] = {
-            "prompt_name": prompt_name,
-            "transcript": transcript,
-            "audio_duration": audio_duration,
-            "sample_rate": sr,
-            "created_at": get_timestamp(),
-            "device": engine.device,
-            "dtype": str(engine.dtype),
-            "language": language,
-            "voice_clone_prompt": encoded_prompt,
-        }
+        async with app.state.prompt_store_lock:
+            app.state.prompt_store[prompt_id] = {
+                "prompt_name": prompt_name,
+                "transcript": transcript,
+                "audio_duration": audio_duration,
+                "sample_rate": sr,
+                "created_at": get_timestamp(),
+                "device": engine.device,
+                "dtype": str(engine.dtype),
+                "language": language,
+                "voice_clone_prompt": encoded_prompt,
+            }
         
         print(f"✅ Prompt created: {prompt_id}")
         
@@ -260,7 +262,8 @@ async def synthesize_voice(
         # Generate audio in-memory
         print(f"🗣  Text: '{request.text[:50]}...' | Language: {request.language}")
 
-        audio_data, sr = engine.synthesize_voice(
+        audio_data, sr = await run_inference(
+            engine.synthesize_voice,
             text=request.text,
             language=request.language,
             voice_clone_prompt=voice_clone_prompt,

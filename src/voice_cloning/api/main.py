@@ -6,8 +6,10 @@ Main application file that sets up FastAPI, middleware, and routes.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 import os
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import sys
 import torch
@@ -52,6 +54,8 @@ def create_app() -> FastAPI:
     app.state.engine = None
     app.state.tts_model = None
     app.state.prompt_store = {}
+    app.state.prompt_store_lock = asyncio.Lock()
+    app.state.inference_executor = None
     app.state.output_dir = Path("./api_output")
     app.state.temp_audio_dir = Path("./api_temp_audio")
 
@@ -64,6 +68,12 @@ def create_app() -> FastAPI:
     async def startup_event():
         """Initialize the voice cloning engine on startup."""
         try:
+            max_workers = int(os.environ.get("API_MAX_INFERENCE_WORKERS", "32"))
+            executor = ThreadPoolExecutor(max_workers=max_workers)
+            app.state.inference_executor = executor
+            asyncio.get_running_loop().set_default_executor(executor)
+            print(f"🧵 Inference thread pool: {max_workers} workers")
+
             print("🚀 Initializing Voice Cloning Engine...")
             
             # Get recommended config and create engine
@@ -134,6 +144,10 @@ def create_app() -> FastAPI:
     async def shutdown_event():
         """Cleanup on shutdown."""
         try:
+            if app.state.inference_executor:
+                app.state.inference_executor.shutdown(wait=False, cancel_futures=True)
+                app.state.inference_executor = None
+
             if app.state.engine:
                 print("🔌 Shutting down Voice Cloning Engine...")
                 if hasattr(app.state.engine, 'clear_prompt_cache'):
