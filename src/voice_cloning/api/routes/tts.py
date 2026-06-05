@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from voice_cloning.api.models import TTSRequest
+from voice_cloning.api.utils import run_inference
 
 router = APIRouter()
 
@@ -32,7 +33,8 @@ async def generate_tts(request: TTSRequest):
         if len(request.text.strip()) == 0:
             raise HTTPException(status_code=400, detail="Text cannot be empty")
 
-        wavs, sr = tts_model.generate_custom_voice(
+        wavs, sr = await run_inference(
+            tts_model.generate_custom_voice,
             text=request.text,
             language=request.language,
             speaker=request.speaker,
